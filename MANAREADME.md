@@ -439,3 +439,71 @@ db.First(&Language{})
 ```
 <br></br>
 <h3>Retrieving objects with primary key</h3>
+اگر کلید اصلی (primary key) یک عدد باشد, اشیا را می توان با استفاده از کلید اصلی, با استفاده از inline conditions بازیابی کرد. هنگام کار با string ها برای جلوگیری از SQL injection باید بیشتر حواسمان جمع باشد.<br>نکته: inline condition را در ادامه بیشتر توضیح می دهیم.
+<br>کد زیر نمونه ای از این بازیابی است:
+
+<br>
+
+```go
+db.First(&user, 10)
+// SELECT * FROM users WHERE id = 10;
+
+db.First(&user, "10")
+// SELECT * FROM users WHERE id = 10;
+
+db.Find(&users, []int{1,2,3})
+// SELECT * FROM users WHERE id IN (1,2,3);
+```
+کلید اصلی در کد بالا, از جنس عدد است. اگر این کلید به صورت string باشد (مثلا uuid) باید به روش زیر عمل کنیم:
+
+<br>
+
+```go
+db.First(&user, "id = ?", "1b74413f-f3b8-409f-ac47-e8c062e3472a")
+// SELECT * FROM users WHERE id = "1b74413f-f3b8-409f-ac47-e8c062e3472a";
+```
+اگر شی مقصد primary key داشته باشد, این primary key برای ساختن condition استفاده خواهد شد:
+
+<br>
+
+```go
+var user = User{ID: 10}
+db.First(&user)
+// SELECT * FROM users WHERE id = 10;
+
+var result User
+db.Model(User{ID: 10}).First(&result)
+// SELECT * FROM users WHERE id = 10;
+```
+نکته: اگر از فیلدهای خاص GORM مانند <code>gorm.DeletedAt</code> استفاده کنیم, یک query دیگر برای بازیابی شی موردنظرمان اجرا خواهد شد, مانند کد زیر:
+
+<br>
+
+```go
+type User struct {
+  ID           string `gorm:"primarykey;size:16"`
+  Name         string `gorm:"size:24"`
+  DeletedAt    gorm.DeletedAt `gorm:"index"`
+}
+
+var user = User{ID: 15}
+db.First(&user)
+//  SELECT * FROM `users` WHERE `users`.`id` = '15' AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1
+```
+<br></br>
+<h3>Retrieving all objects</h3>
+با استفاده از تابع Find می توانیم تمام رکوردهای مربوط به users را از دیتابیس گرفته و خروجی دهیم. در کد زیر تمام این اطلاعات بازیابی می شوند و همینطور درصورت وجود ارور, این ارور خروجی داده می شود:
+
+<br>
+
+```go
+// Get all records
+result := db.Find(&users)
+// SELECT * FROM users;
+
+result.RowsAffected // returns found records count, equals `len(users)`
+result.Error        // returns error
+```
+<br></br>
+<h3>Conditions</h3>
+1. String Conditions :
