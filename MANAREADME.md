@@ -66,3 +66,376 @@ GORM یک کتابخانه ORM برای زبان برنامه نویسی Go اس
 <h3><li>Ebean </h3>
 <h3><li>TopLink </h3>
 <h3><li>Hibernate search </h3>
+<br></br>
+<h2>GRUD interface</h2>
+<hr></hr>
+GRUD interface به مجموعه ای از عملیات ها اشاره دارد که می توانند بر روی یک پایگاه داده با استفاده از کتابخانه GORM انجام شوند. CRUD مخفف Create، Read، Update و Delete است که عملیات های اساسی در کار با داده های پایدار هستند.
+<br></br>
+<h3><li>Create :</h3>
+<br>
+<h3>Create Record</h3>
+
+ما برای درست کردن یک record روش های مختلفی را میتوانیم پیاده سازی کنیم که در ادامه انواع آن توضیح داده شده است.
+
+```go
+user := User{Name: "Jinzhu", Age: 18, Birthday: time.Now()}
+
+result := db.Create(&user) // pass pointer of data to Create
+
+user.ID             // returns inserted data's primary key
+result.Error        // returns error
+result.RowsAffected // returns inserted records count
+
+```
+در تکه کد بالا ابتدا یک متغیر user از جنس User میسازیم. این متغیر دارای اسم و سن و زمان تولد است. db یک instance از GORM است. ما پوینتری از اطلاعات یوزر را به تابع Create از GORM می دهیم و نتیجه را در result ذخیره می کنیم. با استفاده از <code>user.ID</code> id یوزر موردنظر به ما داده می شود. <code>result.Error</code> اگر در اجرای تابع Create مشکلی وجود داشته باشد ارور آن را برمی گرداند. <code>result.RowsAffected</code> تعداد سطرهای جدید اضافه شده در اثر اجرای تابع Create را به ما می دهد.<br> همچنین می توانیم به جای یک یوزر چند یوزر داشته باشیم که باید مانند کد زیر عمل کنیم:
+‍<br>
+
+```go
+users := []*User{
+  User{Name: "Jinzhu", Age: 18, Birthday: time.Now()},
+  User{Name: "Jackson", Age: 19, Birthday: time.Now()},
+}
+
+result := db.Create(users) // pass a slice to insert multiple row
+
+result.Error        // returns error
+result.RowsAffected // returns inserted records count
+```
+<br></br>
+<h3>Create Record With Selected Fields</h3>
+
+برای درست کردن یک record برای آبجکت user در دیتابیس میتوانیم ستون های موردنظرمان را select کنیم و به آنها مقدار دهیم. مانند کد زیر:
+<br>
+
+```go
+db.Select("Name", "Age", "CreatedAt").Create(&user)
+// INSERT INTO `users` (`name`,`age`,`created_at`) VALUES ("jinzhu", 18, "2020-07-04 11:05:21.775")
+```
+<br>
+کد زیر برای درست کردن یک record جدید در دیتابیس است که ستون های موردنظر رااز SQL INSERT درنظر نگرفته است. در نهایت SQL موردنظر فقط ستون های مانده را در دیتابیس ذخیره خواهد کرد.
+
+<br>
+
+```go
+db.Omit("Name", "Age", "CreatedAt").Create(&user)
+// INSERT INTO `users` (`birthday`,`updated_at`) VALUES ("2020-01-01 00:00:00.000", "2020-07-04 11:05:21.775")
+```
+<br></br>
+<h3>Batch insert</h3>
+batch insert در GORM یعنی insert کردن چندین رکورد در یک عملیات به جای insert کردن چندین رکورد به صورت تک به تک. از فواید این روش می توان به افزایش درج کارآمدتر داده ها و کاهش هزینه های ناشی از چندین عملیات دیتابیس اشاره کرد. کد زیر نمونه ای از این روش است:
+
+<br>
+
+```go
+var users = []User{{Name: "jinzhu1"}, {Name: "jinzhu2"}, {Name: "jinzhu3"}}
+db.Create(&users)
+
+for _, user := range users {
+  user.ID // 1, 2, 3
+}
+```
+در این تکه کد ابتدا یک struct از User ها به نام users تعریف می کنیم که ۳ یوزر مختلف با اسم هایشان مشخص شده اند. پوینتری از users را به تابع Create می دهیم تا عملیات batch insert را روی آنها اجرا کرده و id هر یوزر را خروجی دهد. سپس در بخش for که روی users می زنیم، id یوزر های مورد نظر به ما خروجی داده می شود.
+<br>
+اگر تعداد زیادی یوزر داشته باشیم، برای insert کردن آنها در دیتابیس می توانیم این عملیات را در دسته های n تایی انجام دهیم. تقسیم کردن تعداد زیادی یوزر به دسته های کوچک تر باعث می شود کارایی افزایش یابد و استفاده از حافظه کمتر شود. تکه کد زیر با تقسیم یوزر های به دسته های ۱۰۰ تایی و با استفاده از تابع CreateInBatches این روش را پیاده سازی کرده است:
+
+<br>
+
+```go
+var users = []User{{Name: "jinzhu_1"}, ...., {Name: "jinzhu_10000"}}
+db.CreateInBatches(users, 100)
+```
+<br>
+در کد زیر، دیتا ها را به دسته های ۱۰۰۰ تایی تقسیم می کنیم. سپس یک آرایه ۵۰۰۰ تایی از user ها داریم که هرکدام یه اسم و تعدادی (آرایه ای) از Pets دارند. با صدا زدن تابع Create، یوزر ها در ۵ batch که هرکدام از عملیات ها دارای ۱۰۰۰ یوزر است، در دیتابیس insert می شوند. توجه داشته باشید که insert کردن Pet ها در ۱۵ batch انجام می شود:
+
+<br>
+
+```go
+db, err := gorm.Open(sqlite.Open("gorm.db"), &gorm.Config{
+  CreateBatchSize: 1000,
+})
+
+db := db.Session(&gorm.Session{CreateBatchSize: 1000})
+
+users = [5000]User{{Name: "jinzhu", Pets: []Pet{pet1, pet2, pet3}}...}
+
+db.Create(&users)
+// INSERT INTO users xxx (5 batches)
+// INSERT INTO pets xxx (15 batches)
+```
+
+<br></br>
+<h3>Create Hooks</h3>
+در GORM، hook یک مکانیزم است که اه ما اجازه می دهد تا function هایی را تعریف کنیم که به صورت اوتوماتیک در نقاط خاصی از lifecycle یک آبجکت اجرا می شوند. Hook ها کمک می کنند تا یک logic هایی مانند creating، updating، deleting یا querying را اضافه کنیم. <br>حال در GORM این اجازه به ما داده می شود تا hook هایی که کاربر تعریف میکند، برای BeforeSave, BeforeCreate, AfterSave و AfterCreate پیاده سازی شوند. این متد hook زمانی که یک رکورد درست میکنیم فراخوانی می شود. کد زیر مثالی از این نمونه است:
+
+<br>
+
+```go
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+  u.UUID = uuid.New()
+
+  if u.Role == "admin" {
+    return errors.New("invalid role")
+  }
+  return
+}
+```
+در کد بالا، BeforeCreate یک hook method است که برای انجام اکشن ها یا اعتبارسنجی قبل از درست کردن یه رکورد جدید از User در دیتابیس پیاده سازی شده است. همانطور که مشخص است یک UUID برای یوزر ست کرده است. سپس چک می کند که role درست است یا خیر. اگر role یوزر admin بود، ارور می دهد و از ساخت یک یوزر با نقش نادرست جلوگیری می کند.
+
+<br>برای در نظر نگرفتن متد hook می توان به صورت زیر عمل کرد:
+
+```go
+DB.Session(&gorm.Session{SkipHooks: true}).Create(&user)
+
+DB.Session(&gorm.Session{SkipHooks: true}).Create(&users)
+
+DB.Session(&gorm.Session{SkipHooks: true}).CreateInBatches(users, 100)
+```
+<br></br>
+<h3>Create From Map</h3>
+در GORM برای ساختن یک رکورد جدید در دیتابیس به صورت struct می توانیم دیتا را به صورت map در نظر بگیریم (بااستفاده از <code>map[string]interface{}</code> و <code>[]map[string]interface{}{}</code>). کد زیر مثالی از این عملکرد است:
+
+<br>
+
+```go
+db.Model(&User{}).Create(map[string]interface{}{
+  "Name": "jinzhu", "Age": 18,
+})
+
+// batch insert from `[]map[string]interface{}{}`
+db.Model(&User{}).Create([]map[string]interface{}{
+  {"Name": "jinzhu_1", "Age": 18},
+  {"Name": "jinzhu_2", "Age": 20},
+})
+```
+نکته: هنگام استفاده از map برای درست کردن رکورد، hook ها فراخوانی نمی شوند، association ها ذخیره نمی شوند و primary key value ها دوباره پر (filled) نمی شوند.
+<br></br>
+<h3>Create From SQL Expression/Context Valuer</h3>
+روش دیگری برای insert کردن دیتا در GORM با SQL expression, استفاده از <code>map[string]interface{}</code> و  Customized Data Type  ها است. کد زیر هردو روش را پیاده سازی کرده است:
+
+<br>
+
+```go
+// Create from map
+db.Model(User{}).Create(map[string]interface{}{
+  "Name": "jinzhu",
+  "Location": clause.Expr{SQL: "ST_PointFromText(?)", Vars: []interface{}{"POINT(100 100)"}},
+})
+// INSERT INTO `users` (`name`,`location`) VALUES ("jinzhu",ST_PointFromText("POINT(100 100)"));
+
+// Create from customized data type
+type Location struct {
+  X, Y int
+}
+
+// Scan implements the sql.Scanner interface
+func (loc *Location) Scan(v interface{}) error {
+  // Scan a value into struct from database driver
+}
+
+func (loc Location) GormDataType() string {
+  return "geometry"
+}
+
+func (loc Location) GormValue(ctx context.Context, db *gorm.DB) clause.Expr {
+  return clause.Expr{
+    SQL:  "ST_PointFromText(?)",
+    Vars: []interface{}{fmt.Sprintf("POINT(%d %d)", loc.X, loc.Y)},
+  }
+}
+
+type User struct {
+  Name     string
+  Location Location
+}
+
+db.Create(&User{
+  Name:     "jinzhu",
+  Location: Location{X: 100, Y: 100},
+})
+// INSERT INTO `users` (`name`,`location`) VALUES ("jinzhu",ST_PointFromText("POINT(100 100)"))
+```
+<br></br>
+<h3>Create With Associations</h3>
+در درست کردن داده ها با استفاده از association ها, اگر مقدار association آن صفر نباشد, آن association ها اضافه  و متدهای hook فراخوانی خواهند شد. کد زیر این روش را پیاده سازی کرده است:
+
+<br>
+
+```go
+type CreditCard struct {
+  gorm.Model
+  Number   string
+  UserID   uint
+}
+
+type User struct {
+  gorm.Model
+  Name       string
+  CreditCard CreditCard
+}
+
+db.Create(&User{
+  Name: "jinzhu",
+  CreditCard: CreditCard{Number: "411111111111"}
+})
+// INSERT INTO `users` ...
+// INSERT INTO `credit_cards` ...
+```
+اگر بخواهیم association ها ذخیره نشوند, باید از <code>Select</code> و <code>Omit</code> استفاده کنیم, مانند کد زیر:
+
+<br>
+
+```go
+db.Omit("CreditCard").Create(&user)
+
+// skip all associations
+db.Omit(clause.Associations).Create(&user)
+```
+نکته: در ادامه association ها را توضیح خواهیم داد.
+<br></br>
+<h3>Default Values</h3>
+ما می توانیم با تگ <code>default</code>, برای فیلدهایمان مقداری default تعیین کنیم. در این صورت این default value در زمان insert در دیتابیس برای zero-value fields استفاده خواهد شد:
+
+<br>
+
+```go
+type User struct {
+  ID   int64
+  Name string `gorm:"default:galeone"`
+  Age  int64  `gorm:"default:18"`
+}
+```
+نکته: هیچ zero value ای به شکل 0, '', flase برای فیلدهایی که default value تعیین شده اند, در دیتابیس ذخیره نخواهد شد. برای جلوگیری از این مشکل, می توان از pointer یا Scanner/Valuer استفاده کرد, مانند کد زیر:
+
+<br>
+
+```go
+type User struct {
+  gorm.Model
+  Name string
+  Age  *int           `gorm:"default:18"`
+  Active sql.NullBool `gorm:"default:true"`
+}
+```
+باید تگ default را برای فیلدهایی که دارای مقدار default یا virtual/generated در دیتابیس هستند, تنظیم کنیم. اگر بخواهیم در هنگام migrating, مقدار default را درنظر نگیریم, باید از <code>default:(-)</code> استفاده کنیم, مانند کد زیر:
+
+<br>
+
+```go
+type User struct {
+  ID        string `gorm:"default:uuid_generate_v3()"` // db func
+  FirstName string
+  LastName  string
+  Age       uint8
+  FullName  string `gorm:"->;type:GENERATED ALWAYS AS (concat(firstname,' ',lastname));default:(-);"`
+}
+```
+<br></br>
+<h3>Upsert/ On Conflict</h3>
+GORM پشتیبانی سازگار Upsert را برای دیتابیس های مختلف فراهم میکند. کد زیر نمونه ای از آن است:
+
+<br>
+
+```go
+import "gorm.io/gorm/clause"
+
+// Do nothing on conflict
+db.Clauses(clause.OnConflict{DoNothing: true}).Create(&user)
+
+// Update columns to default value on `id` conflict
+db.Clauses(clause.OnConflict{
+  Columns:   []clause.Column{{Name: "id"}},
+  DoUpdates: clause.Assignments(map[string]interface{}{"role": "user"}),
+}).Create(&users)
+// MERGE INTO "users" USING *** WHEN NOT MATCHED THEN INSERT *** WHEN MATCHED THEN UPDATE SET ***; SQL Server
+// INSERT INTO `users` *** ON DUPLICATE KEY UPDATE ***; MySQL
+
+// Use SQL expression
+db.Clauses(clause.OnConflict{
+  Columns:   []clause.Column{{Name: "id"}},
+  DoUpdates: clause.Assignments(map[string]interface{}{"count": gorm.Expr("GREATEST(count, VALUES(count))")}),
+}).Create(&users)
+// INSERT INTO `users` *** ON DUPLICATE KEY UPDATE `count`=GREATEST(count, VALUES(count));
+
+// Update columns to new value on `id` conflict
+db.Clauses(clause.OnConflict{
+  Columns:   []clause.Column{{Name: "id"}},
+  DoUpdates: clause.AssignmentColumns([]string{"name", "age"}),
+}).Create(&users)
+// MERGE INTO "users" USING *** WHEN NOT MATCHED THEN INSERT *** WHEN MATCHED THEN UPDATE SET "name"="excluded"."name"; SQL Server
+// INSERT INTO "users" *** ON CONFLICT ("id") DO UPDATE SET "name"="excluded"."name", "age"="excluded"."age"; PostgreSQL
+// INSERT INTO `users` *** ON DUPLICATE KEY UPDATE `name`=VALUES(name),`age`=VALUES(age); MySQL
+
+// Update all columns to new value on conflict except primary keys and those columns having default values from sql func
+db.Clauses(clause.OnConflict{
+  UpdateAll: true,
+}).Create(&users)
+// INSERT INTO "users" *** ON CONFLICT ("id") DO UPDATE SET "name"="excluded"."name", "age"="excluded"."age", ...;
+// INSERT INTO `users` *** ON DUPLICATE KEY UPDATE `name`=VALUES(name),`age`=VALUES(age), ...; MySQL
+```
+نکته: توضیحات بیشتر در بخش Advanced Query هستند.
+
+<br></br>
+<h3><li>Query :</h3>
+<br>
+<h3>Retrieving a single object</h3>
+GORM متدهای First, Take, Last را برای بازیابی یک شی از پایگاه داده ارائه می دهد، در هنگام پرس و جو از پایگاه داده شرط LIMIT 1 را اضافه می کنیم و اگر رکوردی یافت نشد، خطای ErrRecordNotFound برگردانده می شود. کد زیر این کار را انجام می دهد:
+
+<br>
+
+```go
+// Get the first record ordered by primary key
+db.First(&user)
+// SELECT * FROM users ORDER BY id LIMIT 1;
+
+// Get one record, no specified order
+db.Take(&user)
+// SELECT * FROM users LIMIT 1;
+
+// Get last record, ordered by primary key desc
+db.Last(&user)
+// SELECT * FROM users ORDER BY id DESC LIMIT 1;
+
+result := db.First(&user)
+result.RowsAffected // returns count of records found
+result.Error        // returns error or nil
+
+// check error ErrRecordNotFound
+errors.Is(result.Error, gorm.ErrRecordNotFound)
+```
+نکته: برای جلوگیری از ارور ErrRecordNotFound می توان از تابع Find استفاده کرد. این تابع دیتاهای از نوع struct  و  slice را می پذیرد. مثال: <code>db.Limit(1).Find(&user)</code>
+<br>باید دقت کنیم که استفاده از تابع Find بدون محدودیت, در کل جدول پرس و جو (query) می کند و اولین شی را که موردنظر نیست برمی گرداند.
+<br>تابع های First و Last اولین و آخرین رکورد (به ترتیب) را مطابق با کلید اصلی (primary key) پیدا می کنند. این تابع ها فقط زمانی کار می کنند که یک pointer به struct مقصد به عنوان آرگومان به تابع ها ارسال شود یا زمانی که مدل با استفاده از <code>db.Model()</code> مشخص شود. علاوه بر این، اگر کلید اولیه برای مدل مربوطه تعریف نشده باشد، مدل با فیلد اول مرتب می شود. کد زیر این روش را پیاده سازی کرده است:
+
+<br>
+
+```go
+var user User
+var users []User
+
+// works because destination struct is passed in
+db.First(&user)
+// SELECT * FROM `users` ORDER BY `users`.`id` LIMIT 1
+
+// works because model is specified using `db.Model()`
+result := map[string]interface{}{}
+db.Model(&User{}).First(&result)
+// SELECT * FROM `users` ORDER BY `users`.`id` LIMIT 1
+
+// doesn't work
+result := map[string]interface{}{}
+db.Table("users").First(&result)
+
+// works with Take
+result := map[string]interface{}{}
+db.Table("users").Take(&result)
+
+// no primary key defined, results will be ordered by first field (i.e., `Code`)
+type Language struct {
+  Code string
+  Name string
+}
+db.First(&Language{})
+// SELECT * FROM `languages` ORDER BY `languages`.`code` LIMIT 1
+```
+<br></br>
+<h3>Retrieving objects with primary key</h3>
