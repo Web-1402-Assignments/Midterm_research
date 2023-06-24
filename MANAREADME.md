@@ -67,7 +67,7 @@ GORM یک کتابخانه ORM برای زبان برنامه نویسی Go اس
 <h3><li>TopLink </h3>
 <h3><li>Hibernate search </h3>
 <br></br>
-<h2>GRUD interface</h2>
+<h2>CRUD interface</h2>
 <hr></hr>
 GRUD interface به مجموعه ای از عملیات ها اشاره دارد که می توانند بر روی یک پایگاه داده با استفاده از کتابخانه GORM انجام شوند. CRUD مخفف Create، Read، Update و Delete است که عملیات های اساسی در کار با داده های پایدار هستند.
 <br></br>
