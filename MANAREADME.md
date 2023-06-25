@@ -1003,3 +1003,42 @@ db.WithContext(ctx).Find(&users)
 ```
 به طور مثال در کد بالا, زمان timeout روی ۲ ثانیه تنظیم شده است.
 <br></br>
+<h3><li>Error Handling :</h3>
+مدیریت خطاها در GO بسیار مهم است. همچنین باید توجه داشته باشیم که مدیریت خطاها در GORM, به علت زنجیره ای بودن API, با مدیریت خطاها در GO متفاوت است. انواع حالات مدیریت خطا در GORM را توضیح خواهیم داد.
+<br>اگر خطایی رخ دهد, GORM قسمت <code>*gorm.DB</code> خطا را تنظیم می کند. این بخش را باید به صورت زیر بررسی کرد:
+
+<br>
+
+```go
+if err := db.Where("name = ?", "jinzhu").First(&user).Error; err != nil {
+  // error handling...
+}
+```
+<br>یا
+
+</br>
+
+```go
+if result := db.Where("name = ?", "jinzhu").First(&user); result.Error != nil {
+  // error handling...
+}
+```
+<br></br>
+<h3>ErrRecordNotFound</h3>
+اگر GORM نتواند در حین عملیات های Find, Last و Take, دیتای موردنظر را پیدا کند, <code>ErrRecordNotFound</code> را خروجی می دهد.<br>اگر هم چندین خطا در برنامه داشته باشیم, می توانیم با استفاده از <code>errors.Is</code> خطای <code>ErrRecordNotFound</code> را بررسی کنیم. به این منظور, به صورت زیر عمل می کنیم:
+
+<br>
+
+```go
+err := db.First(&user, 100).Error
+errors.Is(err, gorm.ErrRecordNotFound)
+```
+<br></br>
+<h3>Dialect Translated Errors</h3>
+اگر بخواهیم دقیقا خطای به وجود آمده برایمان نوشته شود (مثلا ErrDuplicatedKey), می توانیم <code>TranlateError</code> flag را در ابتدای باز کردن ارتباط db فعال کنیم:
+
+<br>
+
+```go
+db, err := gorm.Open(postgres.Open(postgresDSN), &gorm.Config{TranslateError: true})
+```
