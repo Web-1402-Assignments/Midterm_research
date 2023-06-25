@@ -910,3 +910,56 @@ db.Delete(&user)
 db.Where("age = 20").Find(&user)
 // SELECT * FROM users WHERE age = 20 AND deleted_at IS NULL;
 ```
+
+<br></br>
+<h3><li>Raw SQL and SQL Builder :</h3>
+<br>
+<h3>Raw SQL</h3>
+Raw SQL در GORM به ما این امکان را می دهد تا دستورات را به صورت دستورات SQL وارد کنیم. مانند کد زیر:
+
+<br>
+
+```go
+type Result struct {
+  ID   int
+  Name string
+  Age  int
+}
+
+var result Result
+db.Raw("SELECT id, name, age FROM users WHERE id = ?", 3).Scan(&result)
+```
+همانطور که در کد بالا می بینیم, دستور SQL که <code>SELECT id, name, age FROM users WHERE id = ?</code> است را به صورت string به تابع Raw می دهیم و خروجی دقیقا همان خروجی SQL این کد خواهد بود که در نهایت Scan شده است.
+<br></br>
+<h3>Row and Rows</h3>
+اگر بخواهیم خروجی کدمان از جنس <code>*sql.Row</code> باشد, می توانیم مانند یکی از دو حالت زیر عمل کنیم:
+
+<br>
+
+```go
+// Use GORM API build SQL
+row := db.Table("users").Where("name = ?", "jinzhu").Select("name", "age").Row()
+row.Scan(&name, &age)
+
+// Use Raw SQL
+row := db.Raw("select name, age, email from users where name = ?", "jinzhu").Row()
+row.Scan(&name, &age, &email)
+```
+<br></br>
+<h3>Scan <code>*sql.Rows</code> into struct</h3>
+می توانیم خروجی ای را که جنس آن از <code>*sql.Row</code> است, در یک struct اسکن (Scan) کنیم. برای این منظور, باید از تابع <code>ScanRows</code> استفاده کنیم که ورودی های آن, پوینتری از یوزر و rows هست. کد زیر نمونه ای از این عملکرد است:
+
+<br>
+
+```go
+rows, err := db.Model(&User{}).Where("name = ?", "jinzhu").Select("name, age, email").Rows() // (*sql.Rows, error)
+defer rows.Close()
+
+var user User
+for rows.Next() {
+  // ScanRows scan a row into user
+  db.ScanRows(rows, &user)
+
+  // do something
+}
+```
