@@ -1271,3 +1271,63 @@ func (u *User) AfterFind(tx *gorm.DB) (err error) {
   return
 }
 ```
+<br></br>
+<h3><li>Transactions :</h3>
+برای اینکه مجموعه ای از عملیات ها را در یک transaction انجام دهیم, به طور کلی باید مانند کد زیر عمل کنیم:
+
+<br>
+
+```go
+db.Transaction(func(tx *gorm.DB) error {
+  // do some database operations in the transaction (use 'tx' from this point, not 'db')
+  if err := tx.Create(&Animal{Name: "Giraffe"}).Error; err != nil {
+    // return any error will rollback
+    return err
+  }
+
+  if err := tx.Create(&Animal{Name: "Lion"}).Error; err != nil {
+    return err
+  }
+  // return nil will commit the whole transaction
+  return nil
+})
+```
+<br></br>
+<h3>Nested Transactions</h3>
+ما در GORM می توانیم زیرمجموعه ای از عملیات های انجام شده در یک scope از یک transaction بزرگتر رابه عقب برگردانیم. کد زیر این عملیات را انجام می دهد:
+
+<br>
+
+```go
+db.Transaction(func(tx *gorm.DB) error {
+  tx.Create(&user1)
+
+  tx.Transaction(func(tx2 *gorm.DB) error {
+    tx2.Create(&user2)
+    return errors.New("rollback user2") // Rollback user2
+  })
+
+  tx.Transaction(func(tx2 *gorm.DB) error {
+    tx2.Create(&user3)
+    return nil
+  })
+
+  return nil
+})
+```
+<br></br>
+<h3>SavePoint, RollbackTo</h3>
+GORM به ما این امکان را می دهد تا با استفاده از <code>SavePoint</code> و <code>RollbackTo</code>, نقاط و roll back یک savepoint را ذخیره کنیم, برای این منظور, مانند کد زیر عمل می کنیم:
+
+<br>
+
+```go 
+tx := db.Begin()
+tx.Create(&user1)
+
+tx.SavePoint("sp1")
+tx.Create(&user2)
+tx.RollbackTo("sp1") // Rollback user2
+
+tx.Commit() // Commit user1
+```
