@@ -1042,3 +1042,24 @@ errors.Is(err, gorm.ErrRecordNotFound)
 ```go
 db, err := gorm.Open(postgres.Open(postgresDSN), &gorm.Config{TranslateError: true})
 ```
+<br></br>
+<h3><li>Method Chaining :</h3>
+GORM اجازه استفاده از توابع به صورت زنجیره ای را به ما می دهد. مانند:
+
+```go
+db.Where("name = ?", "jinzhu").Where("age = ?", 18).First(&user)
+```
+در GORM, ۳ نوع تابع داریم:
+<br>1. Chain Method
+<br>2. Finisher Method
+<br>3. New Session Method
+<br></br>
+<h3>Chain Method</h3>
+Chain Method ها برای اصلاح یا اضافه کردن Cluases به Statement فعلی هستند, مانند:
+<br><code>Where</code>, <code>Select</code>, <code>Omit</code>, <code>Joins</code>, <code>Scopes</code>, <code>Preload</code>, <code>Raw</code>...
+<br></br>
+<h3>Finisher Method</h3>
+Finisher method ها, تابع های فوری هستند که callback های ثبت شده را اجرا می کنند (تولید و اجرای SQL), مانند:
+<br><code>Create</code>, <code>First</code>, <code>Find</code>, <code>Take</code>, <code>Save</code>, <code>Update</code>, <code>Delete</code>, <code>Scan</code>, <code>Row</code>, <code>Rows</code> ...
+<h3>New Session Method</h3>
+تابع های <code>Session</code>, <code>WithContext</code> و <code>Debug</code> در GORM به عنوان new session method شناخته می شوند.
