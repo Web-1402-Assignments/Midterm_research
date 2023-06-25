@@ -145,7 +145,7 @@ var users = []User{{Name: "jinzhu_1"}, ...., {Name: "jinzhu_10000"}}
 db.CreateInBatches(users, 100)
 ```
 <br>
-در کد زیر، دیتا ها را به دسته های ۱۰۰۰ تایی تقسیم می کنیم. سپس یک آرایه ۵۰۰۰ تایی از user ها داریم که هرکدام یه اسم و تعدادی (آرایه ای) از Pets دارند. با صدا زدن تابع Create، یوزر ها در ۵ batch که هرکدام از عملیات ها دارای ۱۰۰۰ یوزر است، در دیتابیس insert می شوند. توجه داشته باشید که insert کردن Pet ها در ۱۵ batch انجام می شود:
+در کد زیر، دیتا ها را به دسته های ۱۰۰۰ تایی تقسیم می کنیم. سپس یک آرایه ۵۰۰۰ تایی از user ها داریم که هرکدام یک اسم و تعدادی (آرایه ای) از Pets دارند. با صدا زدن تابع Create، یوزر ها در ۵ batch که هرکدام از عملیات ها دارای ۱۰۰۰ یوزر است، در دیتابیس insert می شوند. توجه داشته باشید که insert کردن Pet ها در ۱۵ batch انجام می شود:
 
 <br>
 
@@ -165,7 +165,7 @@ db.Create(&users)
 
 <br></br>
 <h3>Create Hooks</h3>
-در GORM، hook یک مکانیزم است که اه ما اجازه می دهد تا function هایی را تعریف کنیم که به صورت اوتوماتیک در نقاط خاصی از lifecycle یک آبجکت اجرا می شوند. Hook ها کمک می کنند تا یک logic هایی مانند creating، updating، deleting یا querying را اضافه کنیم. <br>حال در GORM این اجازه به ما داده می شود تا hook هایی که کاربر تعریف میکند، برای BeforeSave, BeforeCreate, AfterSave و AfterCreate پیاده سازی شوند. این متد hook زمانی که یک رکورد درست میکنیم فراخوانی می شود. کد زیر مثالی از این نمونه است:
+در GORM، hook یک مکانیزم است که به ما اجازه می دهد تا function هایی را تعریف کنیم که به صورت اتوماتیک در نقاط خاصی از lifecycle یک آبجکت اجرا می شوند. Hook ها کمک می کنند تا یک logic هایی مانند creating، updating، deleting یا querying را اضافه کنیم. <br>حال در GORM این اجازه به ما داده می شود تا hook هایی که کاربر تعریف میکند، برای BeforeSave, BeforeCreate, AfterSave و AfterCreate پیاده سازی شوند. این متد hook زمانی که یک رکورد درست میکنیم فراخوانی می شود. کد زیر مثالی از این نمونه است:
 
 <br>
 
@@ -372,7 +372,7 @@ db.Clauses(clause.OnConflict{
 // INSERT INTO "users" *** ON CONFLICT ("id") DO UPDATE SET "name"="excluded"."name", "age"="excluded"."age", ...;
 // INSERT INTO `users` *** ON DUPLICATE KEY UPDATE `name`=VALUES(name),`age`=VALUES(age), ...; MySQL
 ```
-نکته: توضیحات بیشتر در بخش Advanced Query هستند.
+نکته: توضیحات بیشتر در بخش Advanced Query داده خواهند شد.
 
 <br></br>
 <h3><li>Query :</h3>
@@ -439,3 +439,972 @@ db.First(&Language{})
 ```
 <br></br>
 <h3>Retrieving objects with primary key</h3>
+اگر کلید اصلی (primary key) یک عدد باشد, اشیا را می توان با استفاده از کلید اصلی, با استفاده از inline conditions بازیابی کرد. هنگام کار با string ها برای جلوگیری از SQL injection باید بیشتر حواسمان جمع باشد.<br>نکته: inline condition را در ادامه بیشتر توضیح می دهیم.
+<br>کد زیر نمونه ای از این بازیابی است:
+
+<br>
+
+```go
+db.First(&user, 10)
+// SELECT * FROM users WHERE id = 10;
+
+db.First(&user, "10")
+// SELECT * FROM users WHERE id = 10;
+
+db.Find(&users, []int{1,2,3})
+// SELECT * FROM users WHERE id IN (1,2,3);
+```
+کلید اصلی در کد بالا, از جنس عدد است. اگر این کلید به صورت string باشد (مثلا uuid) باید به روش زیر عمل کنیم:
+
+<br>
+
+```go
+db.First(&user, "id = ?", "1b74413f-f3b8-409f-ac47-e8c062e3472a")
+// SELECT * FROM users WHERE id = "1b74413f-f3b8-409f-ac47-e8c062e3472a";
+```
+اگر شی مقصد primary key داشته باشد, این primary key برای ساختن condition استفاده خواهد شد:
+
+<br>
+
+```go
+var user = User{ID: 10}
+db.First(&user)
+// SELECT * FROM users WHERE id = 10;
+
+var result User
+db.Model(User{ID: 10}).First(&result)
+// SELECT * FROM users WHERE id = 10;
+```
+نکته: اگر از فیلدهای خاص GORM مانند <code>gorm.DeletedAt</code> استفاده کنیم, یک query دیگر برای بازیابی شی موردنظرمان اجرا خواهد شد, مانند کد زیر:
+
+<br>
+
+```go
+type User struct {
+  ID           string `gorm:"primarykey;size:16"`
+  Name         string `gorm:"size:24"`
+  DeletedAt    gorm.DeletedAt `gorm:"index"`
+}
+
+var user = User{ID: 15}
+db.First(&user)
+//  SELECT * FROM `users` WHERE `users`.`id` = '15' AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1
+```
+<br></br>
+<h3>Retrieving all objects</h3>
+با استفاده از تابع Find می توانیم تمام رکوردهای مربوط به users را از دیتابیس گرفته و خروجی دهیم. در کد زیر تمام این اطلاعات بازیابی می شوند و همینطور درصورت وجود ارور, این ارور خروجی داده می شود:
+
+<br>
+
+```go
+// Get all records
+result := db.Find(&users)
+// SELECT * FROM users;
+
+result.RowsAffected // returns found records count, equals `len(users)`
+result.Error        // returns error
+```
+<br></br>
+<h3>Conditions</h3>
+به طور کلی, condition ها به ما این امکان را می دهند تا با استفاده از فیلترها و معیارهای موردنظر, رکوردهای خاصی که مدنظرمان هستند را بازیابی کنیم. بنابراین condition ها مانند دستور WHERE در SQL عمل می کنند. condition ها انواع مختلفی دارند که در ادامه به توضیح هر یک می پردازیم.</br>
+<br>1. String Conditions :
+<br>در این نوع condition ما می توانیم شرط موردنظر برای بازیابی دیتا را به صورت رشته (string) مشخص کنیم. این روش مانند دستور WHERE در SQL عمل می کند. کد زیر نمونه هایی به همراه خروجی این دستور را به ما نشان می دهد:
+
+<br>
+
+```go
+// Get first matched record
+db.Where("name = ?", "jinzhu").First(&user)
+// SELECT * FROM users WHERE name = 'jinzhu' ORDER BY id LIMIT 1;
+
+// Get all matched records
+db.Where("name <> ?", "jinzhu").Find(&users)
+// SELECT * FROM users WHERE name <> 'jinzhu';
+
+// IN
+db.Where("name IN ?", []string{"jinzhu", "jinzhu 2"}).Find(&users)
+// SELECT * FROM users WHERE name IN ('jinzhu','jinzhu 2');
+
+// LIKE
+db.Where("name LIKE ?", "%jin%").Find(&users)
+// SELECT * FROM users WHERE name LIKE '%jin%';
+
+// AND
+db.Where("name = ? AND age >= ?", "jinzhu", "22").Find(&users)
+// SELECT * FROM users WHERE name = 'jinzhu' AND age >= 22;
+
+// Time
+db.Where("updated_at > ?", lastWeek).Find(&users)
+// SELECT * FROM users WHERE updated_at > '2000-01-01 00:00:00';
+
+// BETWEEN
+db.Where("created_at BETWEEN ? AND ?", lastWeek, today).Find(&users)
+// SELECT * FROM users WHERE created_at BETWEEN '2000-01-01 00:00:00' AND '2000-01-08 00:00:00';
+```
+همانطور که مشاهده می کنید در کد بالا, انواع حالات مشخص کردن شرط با string و خروجی کدها مشخص شده اند. 
+<br></br>
+<br>2. Struct and Map Conditions :
+<br>این نوع condition به ما اجازه می دهد تا شرط دیتای موردنظر را با استفاده از structured data یا map مشخص کنیم, مانند کد زیر:
+
+<br>
+
+```go
+// Struct
+db.Where(&User{Name: "jinzhu", Age: 20}).First(&user)
+// SELECT * FROM users WHERE name = "jinzhu" AND age = 20 ORDER BY id LIMIT 1;
+
+// Map
+db.Where(map[string]interface{}{"name": "jinzhu", "age": 20}).Find(&users)
+// SELECT * FROM users WHERE name = "jinzhu" AND age = 20;
+
+// Slice of primary keys
+db.Where([]int64{20, 21, 22}).Find(&users)
+// SELECT * FROM users WHERE id IN (20, 21, 22);
+```
+نکته: در GORM زمانی که از struct استفاده می کنیم, فیلدهایمان باید non zero باشند تا عملیات جستجو انجام شود. برای رفع این مشکل, به جای struct باید از map استفاده کنیم. به طور مثال, صفر در کد زیر مشکلی ایجاد نمی کند:
+
+<br>
+
+```go
+db.Where(map[string]interface{}{"Name": "jinzhu", "Age": 0}).Find(&users)
+// SELECT * FROM users WHERE name = "jinzhu" AND age = 0;
+```
+اما اگر بخواهیم در این شرایط از struct استفاده کنیم و همچنان مشکلی نداشته باشیم, باید مانند کد زیر عمل کنیم:
+
+<br>
+
+```go
+db.Where(&User{Name: "jinzhu"}, "name", "Age").Find(&users)
+// SELECT * FROM users WHERE name = "jinzhu" AND age = 0;
+```
+</br>
+<br>3. Inline Condition :
+<br>در این نوع شرط ما می توانیم به صورت مستقیم در تابع هایی مانند First و Find شرط موردنظر را بنویسیم:
+
+<br>
+
+```go
+db.Find(&users, "name <> ? AND age > ?", "jinzhu", 20)
+// SELECT * FROM users WHERE name <> "jinzhu" AND age > 20;
+
+// Struct
+db.Find(&users, User{Age: 20})
+// SELECT * FROM users WHERE age = 20;
+
+// Map
+db.Find(&users, map[string]interface{}{"age": 20})
+// SELECT * FROM users WHERE age = 20;
+```
+</br>
+<br>4. Not Conditions :
+<br>در این نوع condition, ما می توانیم شروطی را مشخص کنیم که نمی خواهیم رکوردی که به ما خروجی داده می شود, دارای آنها باشد. مانند کد زیر:
+
+<br>
+
+```go
+db.Not("name = ?", "jinzhu").First(&user)
+// SELECT * FROM users WHERE NOT name = "jinzhu" ORDER BY id LIMIT 1;
+
+// Struct
+db.Not(User{Name: "jinzhu", Age: 18}).First(&user)
+// SELECT * FROM users WHERE name <> "jinzhu" AND age <> 18 ORDER BY id LIMIT 1;
+
+// Not In slice of primary keys
+db.Not([]int64{1,2,3}).First(&user)
+// SELECT * FROM users WHERE id NOT IN (1,2,3) ORDER BY id LIMIT 1;
+```
+</br>
+<br>5. Or Conditions :
+<br>در این نوع condition می توانیم دو حالت شرط را درنظر بگیریم. کد زیر مثالی از این روش با استفاده از map است:
+
+<br>
+
+```go
+// Map
+db.Where("name = 'jinzhu'").Or(map[string]interface{}{"name": "jinzhu 2", "age": 18}).Find(&users)
+// SELECT * FROM users WHERE name = 'jinzhu' OR (name = 'jinzhu 2' AND age = 18);
+```
+<br></br>
+<h3>Selecting Specific Fields</h3>
+Select در GORM به ما این اجازه را می دهد تا field های موردنظرمان را که می خواهیم رکورد خروجی آنها را داشته باشد مشخص کنیم. کد زیر نمونه ساده ای از این روش است:
+
+<br>
+
+```go
+db.Select("name", "age").Find(&users)
+// SELECT name, age FROM users;
+```
+<br></br>
+<h3>Order</h3>
+ما می توانیم ترتیب رکوردهایی را که به ما داده می شوند خودمان مشخص کنیم. برای این کار, از تابع Order در GORM استفاده می کنیم. دو حالت از این روش در کد زیر با توضیحاتشان مشخص شده اند:
+
+<br>
+
+```go
+// Multiple orders
+db.Order("age desc").Order("name").Find(&users)
+// SELECT * FROM users ORDER BY age desc, name;
+
+db.Clauses(clause.OrderBy{
+  Expression: clause.Expr{SQL: "FIELD(id,?)", Vars: []interface{}{[]int{1, 2, 3}}, WithoutParentheses: true},
+}).Find(&User{})
+// SELECT * FROM users ORDER BY FIELD(id,1,2,3)
+```
+<br></br>
+<h3>Limit and Offset</h3>
+Limit, بیشترین تعداد رکوردهایی را که می خواهیم مشخص می کند. مانند کد زیر:
+<br>Offset تعداد رکوردهایی را که نمیخواهیم خروجی داده شوند (قبل از رکورد کردن) مشخص می کند. کد زیر ترکیبی از این دو حالت است:
+
+<br>
+
+```go
+db.Limit(10).Offset(5).Find(&users)
+// SELECT * FROM users OFFSET 5 LIMIT 10;
+```
+اگر بخواهیم Limit را کنسل کنیم, باید از <code>Limit(-1)</code> استفاده کنیم. مانند کد زیر:
+<br>
+
+```go
+db.Limit(10).Find(&users1).Limit(-1).Find(&users2)
+```
+<br></br>
+<h3>Group By and Having</h3>
+با استفاده از Group By می توانیم مجموعه ای از دیتاها را دریافت کنیم و عملیات ها را روی زیرمجموعه ای از سطرها که اطلاعاتی مشترک دارند, انجام دهیم. به طور مثال کد زیر را درنظر بگیرید:
+
+<br>
+
+```go
+db.Model(&User{}).Select("name, sum(age) as total").Where("name LIKE ?", "group%").Group("name").First(&result)
+```
+در این کد ابتدا با <code>db.Model(&User{})</code> مشخص می کنیم که قرار است عملیات موردنظر روی جدول User انجام شود. <code>Select("name, sum(age) as total")</code> در این تکه کد, ابتدا ستون name را انتخاب می کنیم, سپس اعداد ستون age را باهم جمع کرده و داخل متغیر total ذخیره می کنیم. <code>Where("name LIKE ?", "group%")</code> در این بخش براساس ستون name, اسم هایی را که شبیه به هم هستند و با group شروع می شوند را شناسایی می کنیم. با این تکه کد, <code>Group("name")</code>, رکوردها را براساس یکسان بودن اسم هایشان تقسیم بندی می کنیم. و در نهایت با استفاده از کد <code>First(&result)</code> اولین جواب جستجو را با توجه به شروط گفته شده, در result ذخیره می کنیم.<br>نکته: باید توجه داشت که این کد, age ها را برای دیتاهایی که اسم هایشان در شرایط <code>name LIKE "group%</code> صدق می کند با هم جمع می کند.
+<br></br>Having نیز نوعی شرط را روی دیتاهای موردنظر مشخص می کند و این امکان را به ما می دهد تا گروه ها را بر اساس محاسبات کل فیلتر کنیم.<br>نکته: Having همواره بعد از Group By می آید.<br>کد زیر را درنظر بگیرید:
+
+<br>
+
+```go
+rows, err := db.Table("orders").Select("date(created_at) as date, sum(amount) as total").Group("date(created_at)").Having("sum(amount) > ?", 100).Rows()
+defer rows.Close()
+for rows.Next() {
+  ...
+}
+```
+در کد بالا همانطور که مشاهد می کنید, ابتدا گروه هایی را با شرایط تعیین شده مشخص می کنیم, سپس با استفاده از Having,  آن گروه هایی که جمع ستون های amount آنها از  ۱۰۰ بیشتر است را انتخاب می کنیم.
+<br></br>
+<h3>Distinct</h3>
+این تابع در GORM به ما اجازه می دهد تا رکوردهای منحصر به فرد را از جدول بازیابی کنیم و تکرارها را در نتیجه حذف کنیم. Distinct با Pluck و Count کار می کند (که در ادامه توضیح داده می شوند).<br>در کد زیر, دنبال دیتاهایی هستیم که ترکیب name و age آنها متفاوت است:
+
+<br>
+
+```go
+db.Distinct("name", "age").Order("name, age desc").Find(&results)
+```
+<br></br>
+<h3>Joins</h3>
+Join این امکان را به ما می دهد تا دیتاها را از چندین جدول, با توجه به شروط موردنظر, ترکیب کنیم. به کد زیر توجه کنید:
+
+<br>
+
+```go
+type result struct {
+  Name  string
+  Email string
+}
+
+db.Model(&User{}).Select("users.name, emails.email").Joins("left join emails on emails.user_id = users.id").Scan(&result{})
+```
+در کد بالا, پس از انتخاب ستون ها از جدول های موردنظر (name از جدول User و email از جدول emails), این دو جدول را بر اساس برابری ستون های user_id در جدول emails و id در جدول users ترکیب می کنیم.
+<br>
+از انواع join های دیگر می توان به Joins Preloading, Join with conditions و Joins a Derived Table اشاره کرد.
+<br></br>
+<h3>Scan</h3>
+Scan نتایج در یک struct عمکردی مانند Find دارد. کد زیر نمونه ای از این روش است:
+
+<br>
+
+```go
+type Result struct {
+  Name string
+  Age  int
+}
+
+var result Result
+db.Table("users").Select("name", "age").Where("name = ?", "Antonio").Scan(&result)
+```
+
+<br></br>
+<h3><li>Advanced Query :</h3>
+<br>
+<h3>Smart Select Fields</h3>
+smart select fields در GORM, یک قابلیت است که در آن, یک select به صورت اتوماتیک, با فیلدهای خاصی, تولید می شود. (هنگام جستجو در دیتابیس). این ویژگی این امکان را به ما می دهد تا فیلدهای خاص و موردنظرمان را از جدول بازیابی کنیم (به جای دریافت همه ستون ها). به طور مثال کد زیر را درنظر بگیرید:
+
+<br>
+
+```go
+type User struct {
+  ID     uint
+  Name   string
+  Age    int
+  Gender string
+}
+
+type APIUser struct {
+  ID   uint
+  Name string
+}
+
+// Select `id`, `name` automatically when querying
+db.Model(&User{}).Limit(10).Find(&APIUser{})
+```
+در کد بالا, دو struct User و  APIUser داریم که این دومین struct, فیلدهای موردنظر ما ینی name و id را مشخص میکند. سپس در خط آخر, با محدودیت ۱۰ خروجی, تمام فیدهای id و name را از User جستجو کرده و خروجی می دهد.
+<br></br>
+<h3>SubQuery</h3>
+SubQuery در GORM, به یک جستجو داخل جستجویی دیگر گفته می شود. این ویژگی به ما اجازه می دهد که نتیجه یک جستجو را به عنوان ورودی یا شرط برای جستجویی دیگر درنظر بگیریم, درنتیجه قادر به جستجوهای پیچیده تری خواهیم بود. کد زیر نمونه ای از یک SubQuery است:
+
+<br>
+
+```go
+db.Where("amount > (?)", db.Table("orders").Select("AVG(amount)")).Find(&orders)
+// SELECT * FROM "orders" WHERE amount > (SELECT AVG(amount) FROM "orders");
+```
+در کد بالا, جستجوی اصلی بخش <code>db.Where("amount > (?)", subquery).Find(&orders)</code> است و subquery در این عبارت, بخش <code>db.Table("orders").Select("AVG(amount)")</code> است. جستجوی اصلی در این تکه کد, این است که رکوردهایی را از جدول orders به ما بدهد که amount آنها بیشتر از میانگین amount حساب شده در subquery باشد.
+<br></br>
+<h3>Pluck</h3>
+در این روش, یک ستون از دیتابیس را جستجو می کنیم, سپس آن را در یک قطعه (slice), scan می کنیم. کد زیر نمونه ای از این روش است:
+
+<br>
+
+```go
+var ages []int64
+db.Model(&users).Pluck("age", &ages)
+```
+در کد بالا مقادیر ستون age را بازیابی کرده (از جدول users) و آنها را در قطعه (slice) ages ذخیره می کنیم.
+
+<br>
+اگر بخواهیم چندین ستون را جستجو کنیم, از select با scan استفاده  می کنیم (به جای Select و Pluck), مانند کد زیر:
+
+<br>
+
+```go
+db.Select("name", "age").Scan(&users)
+```
+<br></br>
+<h3>Scopes</h3>
+Scope ها این امکان را به ما می دهند تا جستجوهای پرکاربرد را مشخص کنیم. Scope ها معمولا به صورت توابع فراخوانی می شوند. مثال:
+
+<br>
+
+```go
+func AmountGreaterThan1000(db *gorm.DB) *gorm.DB {
+  return db.Where("amount > ?", 1000)
+}
+
+func PaidWithCreditCard(db *gorm.DB) *gorm.DB {
+  return db.Where("pay_mode_sign = ?", "C")
+}
+db.Scopes(AmountGreaterThan1000, PaidWithCreditCard).Find(&orders)
+// Find all credit card orders and amount greater than 1000
+```
+در کد بالا تابع <code>AmountGreaterThan1000</code> یک تابع scope است که خروجی و ورودی آن از جنس <code>*gorm.DB</code> هستند. در بخش <code>db.Scopes(AmountGreaterThan1000, PaidWithCreditCard).Find(&orders)</code>, شروط موجود در دو scope (<code>AmountGreaterThan1000</code> و <code>PaidWithCreditCard</code>) را باهم ادغام می کنیم و رکوردهای موردنظر را به توجه به این شرایط خروجی می دهیم.
+<br></br>
+<h3>Count</h3>
+Count در GORM, تعداد رکوردهایی را که در شرایط خاصی صدق می کنند را به ما می دهد. تابع Count این مقدار را بدون اینکه آن رکوردها را خروجی دهد به ما می دهد.
+کد زیر مثالی از این روش است:
+
+<br>
+
+```go
+var count int64
+db.Model(&User{}).Where("age > ?", 18).Count(&count)
+```
+
+<br></br>
+<h3><li>Update :</h3>
+<br>
+<h3>Save All Fields</h3>
+اگر در SQL, به روزرسانی کنیم, save همه فیلدها را ذخیره خواهد کرد:
+
+<br>
+
+```go
+db.First(&user)
+
+user.Name = "jinzhu 2"
+user.Age = 100
+db.Save(&user)
+// UPDATE users SET name='jinzhu 2', age=100, birthday='2016-01-01', updated_at = '2013-11-17 21:34:10' WHERE id=111;
+```
+<br></br>
+<h3>Update single column</h3>
+استفاده از update باید به همراه شرط (condition) باشد, در غیر این صورت ارور <code>ErrMissingWhereClause</code> می دهد. کد زیر مثالی از update با شرط است:
+
+<br>
+
+```go
+db.Model(&User{}).Where("active = ?", true).Update("name", "hello")
+// UPDATE users SET name='hello', updated_at='2013-11-17 21:34:10' WHERE active=true;
+```
+<br></br>
+<h3>Update multiple columns</h3>
+برای اینکه چندین ستون را update کنیم, باید از <code>struct</code> یا <code>map[string]interface{}</code> استفاده کنیم,مانند کد زیر:
+
+<br>
+
+```go
+db.Model(&user).Updates(User{Name: "hello", Age: 18, Active: false})
+// UPDATE users SET name='hello', age=18, updated_at = '2013-11-17 21:34:10' WHERE id = 111;
+
+db.Model(&user).Updates(map[string]interface{}{"name": "hello", "age": 18, "active": false})
+// UPDATE users SET name='hello', age=18, active=false, updated_at='2013-11-17 21:34:10' WHERE id=111;
+```
+نکته: اگر از <code>struct</code> استفاده می کنیم, باید توجه داشته باشیم که فقط فیلدهای non-zero آپدیت خواهند شد.
+<br></br>
+<h3>Batch Updates</h3>
+اگر در Model, رکوردی که دارای primary key است را مشخص نکرده باشیم, GORM یک batch update انجام می دهد, مانند کد زیر:
+
+<br>
+
+```go
+// Update with struct
+db.Model(User{}).Where("role = ?", "admin").Updates(User{Name: "hello", Age: 18})
+// UPDATE users SET name='hello', age=18 WHERE role = 'admin';
+
+// Update with map
+db.Table("users").Where("id IN ?", []int{10, 11}).Updates(map[string]interface{}{"name": "hello", "age": 18})
+// UPDATE users SET name='hello', age=18 WHERE id IN (10, 11);
+```
+
+<br></br>
+<h3><li>Delete :</h3>
+<br>
+<h3>Delete a Record</h3>
+در هنگام حذف کردن یک رکورد, مقداری که می خواهیم حذف شود باید primary key داشته باشد در غیر این صورت, یک batch delete صورت می گیرد که در ادامه توضیح می دهیم. کد زیر یک نمونه delete است:
+
+<br>
+
+```go
+// Delete with additional conditions
+db.Where("name = ?", "jinzhu").Delete(&email)
+// DELETE from emails where id = 10 AND name = "jinzhu";
+```
+<br></br>
+<h3>Batch Delete</h3>
+همانطور که گفته شد, اگر مقدار مشخص شده برای حذف, primary key نداشته باشد, GORM تمام رکوردهایی که با شرایط صدق می کنند را حذف خواهد کرد, مانند کد زیر:
+
+<br>
+
+```go
+db.Delete(&Email{}, "email LIKE ?", "%jinzhu%")
+// DELETE from emails where email LIKE "%jinzhu%";
+```
+<br></br>
+<h3>Soft Delete</h3>
+اگر مدل ما دارای فیلد <code>gorm.DeletedAt</code> باشد, به طور اتوماتیک قابلیت soft delete را خواهد داشت.<br> زمانی که ما Delete را فراخوانی می کنیم, رکورد موردنظر از دیتابیس حذف نمی شود, بلکه GORM مقدار DeletedAt را روی زمان فعلی تنظیم می کند و در این صورت, دیتای ما, دیگر با روش های عادی Query قابل یافتن نخواهد بود:
+
+<br>
+
+```go
+// user's ID is `111`
+db.Delete(&user)
+// UPDATE users SET deleted_at="2013-10-29 10:23" WHERE id = 111;
+// Soft deleted records will be ignored when querying
+db.Where("age = 20").Find(&user)
+// SELECT * FROM users WHERE age = 20 AND deleted_at IS NULL;
+```
+
+<br></br>
+<h3><li>Raw SQL and SQL Builder :</h3>
+<br>
+<h3>Raw SQL</h3>
+Raw SQL در GORM به ما این امکان را می دهد تا دستورات را به صورت دستورات SQL وارد کنیم. مانند کد زیر:
+
+<br>
+
+```go
+type Result struct {
+  ID   int
+  Name string
+  Age  int
+}
+
+var result Result
+db.Raw("SELECT id, name, age FROM users WHERE id = ?", 3).Scan(&result)
+```
+همانطور که در کد بالا می بینیم, دستور SQL که <code>SELECT id, name, age FROM users WHERE id = ?</code> است را به صورت string به تابع Raw می دهیم و خروجی دقیقا همان خروجی SQL این کد خواهد بود که در نهایت Scan شده است.
+<br></br>
+<h3>Row and Rows</h3>
+اگر بخواهیم خروجی کدمان از جنس <code>*sql.Row</code> باشد, می توانیم مانند یکی از دو حالت زیر عمل کنیم:
+
+<br>
+
+```go
+// Use GORM API build SQL
+row := db.Table("users").Where("name = ?", "jinzhu").Select("name", "age").Row()
+row.Scan(&name, &age)
+
+// Use Raw SQL
+row := db.Raw("select name, age, email from users where name = ?", "jinzhu").Row()
+row.Scan(&name, &age, &email)
+```
+<br></br>
+<h3>Scan <code>*sql.Rows</code> into struct</h3>
+می توانیم خروجی ای را که جنس آن از <code>*sql.Row</code> است, در یک struct اسکن (Scan) کنیم. برای این منظور, باید از تابع <code>ScanRows</code> استفاده کنیم که ورودی های آن, پوینتری از یوزر و rows هست. کد زیر نمونه ای از این عملکرد است:
+
+<br>
+
+```go
+rows, err := db.Model(&User{}).Where("name = ?", "jinzhu").Select("name, age, email").Rows() // (*sql.Rows, error)
+defer rows.Close()
+
+var user User
+for rows.Next() {
+  // ScanRows scan a row into user
+  db.ScanRows(rows, &user)
+
+  // do something
+}
+```
+<br></br>
+<h2>GORM Tutorial</h2>
+<hr></hr>
+<h3><li>Context :</h3>
+Context در GORM, برای مدیریت lifecycle یک درخواست یا عملیات استفاده می شود. به عبارتی دیگر, context می تواند عملیات هایی را که شامل جستجو یا transaction در دیتابیس هستند مدیریت کند. همچنین به ما کمک می کند تا timeout ها, cancellation ها و  request-scoped value ها را مدیریت کنیم.<br>تابع مربوط به context, <code>WithContex</code> است.
+<br></br>
+<h3>Single Session Mode</h3>
+این حالت معمولا زمانی استفاده می شود که  بخواهیم فقط ۱ عملیات انجام دهیم.<br>مثال:
+
+<br>
+
+```go
+db.WithContext(ctx).Find(&users)
+```
+<br></br>
+<h3>Continuous session mode</h3>
+این حالت معمولا زمانی استفاده می شود که بخواهیم گروهی از عملیات ها را انجام دهیم.<br>مثال:
+
+<br>
+
+```go
+tx := db.WithContext(ctx)
+tx.First(&user, 1)
+tx.Model(&user).Update("role", "admin")
+```
+در کد بالا, با استفاده از یک context به اسم <code>ctx</code>, یک transaction ساخته ایم و آن را در tx ذخیره کرده ایم. سپس بخش های <code>tx.First(&user, 1)</code> و <code>tx.Model(&user).Update("role", "admin")</code>, عملیات دیتابیس را داخل transaction انجام می دهند.
+<br></br>
+<h3>Context timeout</h3>
+Context timeout در GORM به ما این امکان را می دهد تا حداکثر زمان مجاز انجام یک عملیات دیتابیس را مشخص کنیم. همچنین کمک می کند تا از اجرای طولانی یا هنگ کردن یک جستجو جلوگیری کنیم. کد زیر مثالی از این روش است:
+
+<br>
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+defer cancel()
+
+db.WithContext(ctx).Find(&users)
+```
+به طور مثال در کد بالا, زمان timeout روی ۲ ثانیه تنظیم شده است.
+<br></br>
+<h3><li>Error Handling :</h3>
+مدیریت خطاها در GO بسیار مهم است. همچنین باید توجه داشته باشیم که مدیریت خطاها در GORM, به علت زنجیره ای بودن API, با مدیریت خطاها در GO متفاوت است. انواع حالات مدیریت خطا در GORM را توضیح خواهیم داد.
+<br>اگر خطایی رخ دهد, GORM قسمت <code>*gorm.DB</code> خطا را تنظیم می کند. این بخش را باید به صورت زیر بررسی کرد:
+
+<br>
+
+```go
+if err := db.Where("name = ?", "jinzhu").First(&user).Error; err != nil {
+  // error handling...
+}
+```
+<br>یا
+
+</br>
+
+```go
+if result := db.Where("name = ?", "jinzhu").First(&user); result.Error != nil {
+  // error handling...
+}
+```
+<br></br>
+<h3>ErrRecordNotFound</h3>
+اگر GORM نتواند در حین عملیات های Find, Last و Take, دیتای موردنظر را پیدا کند, <code>ErrRecordNotFound</code> را خروجی می دهد.<br>اگر هم چندین خطا در برنامه داشته باشیم, می توانیم با استفاده از <code>errors.Is</code> خطای <code>ErrRecordNotFound</code> را بررسی کنیم. به این منظور, به صورت زیر عمل می کنیم:
+
+<br>
+
+```go
+err := db.First(&user, 100).Error
+errors.Is(err, gorm.ErrRecordNotFound)
+```
+<br></br>
+<h3>Dialect Translated Errors</h3>
+اگر بخواهیم دقیقا خطای به وجود آمده برایمان نوشته شود (مثلا ErrDuplicatedKey), می توانیم <code>TranlateError</code> flag را در ابتدای باز کردن ارتباط db فعال کنیم:
+
+<br>
+
+```go
+db, err := gorm.Open(postgres.Open(postgresDSN), &gorm.Config{TranslateError: true})
+```
+<br></br>
+<h3><li>Method Chaining :</h3>
+GORM اجازه استفاده از توابع به صورت زنجیره ای را به ما می دهد. مانند:
+
+```go
+db.Where("name = ?", "jinzhu").Where("age = ?", 18).First(&user)
+```
+در GORM, ۳ نوع تابع داریم:
+<br>1. Chain Method
+<br>2. Finisher Method
+<br>3. New Session Method
+<br></br>
+<h3>Chain Method</h3>
+Chain Method ها برای اصلاح یا اضافه کردن Cluases به Statement فعلی هستند, مانند:
+<br><code>Where</code>, <code>Select</code>, <code>Omit</code>, <code>Joins</code>, <code>Scopes</code>, <code>Preload</code>, <code>Raw</code>...
+<br></br>
+<h3>Finisher Method</h3>
+Finisher method ها, تابع های فوری هستند که callback های ثبت شده را اجرا می کنند (تولید و اجرای SQL), مانند:
+<br><code>Create</code>, <code>First</code>, <code>Find</code>, <code>Take</code>, <code>Save</code>, <code>Update</code>, <code>Delete</code>, <code>Scan</code>, <code>Row</code>, <code>Rows</code> ...
+<h3>New Session Method</h3>
+تابع های <code>Session</code>, <code>WithContext</code> و <code>Debug</code> در GORM به عنوان new session method شناخته می شوند.
+<br></br>
+<h3><li>Session :</h3>
+یک نوع تابع New Session Method است که امکان ایجاد یک session جدید با حالت configuration را به ما می دهد. با session می توانیم چندین عملیات دیتابیس را در یک واحد منطقی گروه بندی کنیم. برخی از این واحدهای منطقی به این صورت هستند:
+
+<br>
+
+```go
+// Session Configuration
+type Session struct {
+  DryRun                   bool
+  PrepareStmt              bool
+  NewDB                    bool
+  Initialized              bool
+  SkipHooks                bool
+  SkipDefaultTransaction   bool
+  DisableNestedTransaction bool
+  AllowGlobalUpdate        bool
+  FullSaveAssociations     bool
+  QueryFields              bool
+  Context                  context.Context
+  Logger                   logger.Interface
+  NowFunc                  func() time.Time
+  CreateBatchSize          int
+}
+```
+<h3>DryRun</h3>
+به طور مثال, <code>DryRun</code> به صورت زیر است که در خود کد توضیح داده شده است:
+
+<br>
+
+```go
+// session mode
+stmt := db.Session(&Session{DryRun: true}).First(&user, 1).Statement
+stmt.SQL.String() //=> SELECT * FROM `users` WHERE `id` = $1 ORDER BY `id`
+stmt.Vars         //=> []interface{}{1}
+
+// globally mode with DryRun
+db, err := gorm.Open(sqlite.Open("gorm.db"), &gorm.Config{DryRun: true})
+
+// different databases generate different SQL
+stmt := db.Find(&user, 1).Statement
+stmt.SQL.String() //=> SELECT * FROM `users` WHERE `id` = $1 // PostgreSQL
+stmt.SQL.String() //=> SELECT * FROM `users` WHERE `id` = ?  // MySQL
+stmt.Vars         //=> []interface{}{1}
+```
+کد بالا, یک SQL را بدون اجرا, تولید می کند. این عملکرد می تواند به ما در آماده کردن یا تست کردن SQL تولیدشده کمک کند.
+<br>در ادامه کد بالا, برای تولید SQL نهایی باید از کد زیر استفاده کنیم:
+
+<br>
+
+```go
+// NOTE: the SQL is not always safe to execute, GORM only uses it for logs, it might cause SQL injection
+db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
+// SELECT * FROM `users` WHERE `id` = 1
+```
+<br>
+<h3>Skip Hooks</h3>
+اگر بخواهیم توابع hook را درنظر نگیریم (Skip کنیم), باید از SkipHooks که یک نوع session mode است استفاده کنیم, مثلا:
+
+<br>
+
+```go
+DB.Session(&gorm.Session{SkipHooks: true}).Create(&user)
+
+DB.Session(&gorm.Session{SkipHooks: true}).Model(User{}).Where("age > ?", 18).Updates(&user)
+```
+<h3>Context</h3>
+با context, می توانیم برای عملیات SQL ای که قرار است اجرا شود, context تنظیم کنیم, مانند کد زیر:
+
+<br>
+
+```go
+timeoutCtx, _ := context.WithTimeout(context.Background(), time.Second)
+tx := db.Session(&Session{Context: timeoutCtx})
+
+tx.First(&user) // query with context timeoutCtx
+tx.Model(&user).Update("role", "admin") // update with context timeoutCtx
+```
+<h3>CreateBatchSize</h3>
+default batch size:
+
+<br>
+
+```go
+users = [5000]User{{Name: "jinzhu", Pets: []Pet{pet1, pet2, pet3}}...}
+
+db.Session(&gorm.Session{CreateBatchSize: 1000}).Create(&users)
+// INSERT INTO users xxx (5 batches)
+// INSERT INTO pets xxx (15 batches)
+```
+توضیحات کد بالا را قبلا داده بودیم.
+<br></br>
+<h3><li>Hooks :</h3>
+hook ها توابعی هستند که قبل یا بعد creation, querying, updating و deletion فراخوانی می شوند.
+<br>حالت کلی توابع hoop به این صورت است:
+<code>func(*gorm.DB) error</code>
+<br></br>
+<h3>Creating an object</h3>
+hook های موجود برای درست کردن یک object:
+
+<br>
+
+```
+BeforeSave
+BeforeCreate
+AfterCreate
+AfterSave
+```
+قبل و بعد از ساخت یک user, مراحل زیر را باید انجام دهیم:
+<br>
+نکته: <code>BeforeCreate</code> و <code>AfterCreate</code>, توابع hook هستند.
+
+<br>
+
+```go
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+  u.UUID = uuid.New()
+
+  if !u.IsValid() {
+    err = errors.New("can't save invalid data")
+  }
+  return
+}
+
+func (u *User) AfterCreate(tx *gorm.DB) (err error) {
+  if u.ID == 1 {
+    tx.Model(u).Update("role", "admin")
+  }
+  return
+}
+```
+در کد بالا, تابع <code>BeforeCreate</code>, یک uuid برای instance user می سازد (قبل از ساخته شدن یوزر). پس از ساخته شدن یوزر, تابع <code>AfterCreate</code> برای چک کردن uuid و دیگر عملکردهایی که در کد مشخص اند, فراخوانی می شود.
+<br></br>
+<h3>Updating an object</h3>
+hook های موجود برای update کردن یک object:
+
+<br>
+
+```
+BeforeSave
+BeforeUpdate
+AfterUpdate
+AfterSave
+```
+کد نمونه برای update کردن یک object به صورت زیر است:
+
+<br>
+
+```go
+func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
+  if u.readonly() {
+    err = errors.New("read only user")
+  }
+  return
+}
+
+// Updating data in same transaction
+func (u *User) AfterUpdate(tx *gorm.DB) (err error) {
+  if u.Confirmed {
+    tx.Model(&Address{}).Where("user_id = ?", u.ID).Update("verfied", true)
+  }
+  return
+}
+```
+<br></br>
+<h3>Deleting an object</h3>
+hook های موجود برای حذف کردن یک object:
+
+<br>
+
+```
+BeforeDelete
+AfterDelete
+```
+برای این بخش, باید به طور کلی مانند کد زیر عمل کنیم:
+
+<br>
+
+```go
+// Updating data in same transaction
+func (u *User) AfterDelete(tx *gorm.DB) (err error) {
+  if u.Confirmed {
+    tx.Model(&Address{}).Where("user_id = ?", u.ID).Update("invalid", false)
+  }
+  return
+}
+```
+<br></br>
+<h3>Querying an object</h3>
+hook های موجود برای جستجو کردن یک object:
+
+<br>
+
+```
+AfterFind
+```
+استفاده از <code>AfterFind</code> به صورت زیر خواهد بود:
+
+<br>
+
+```go
+func (u *User) AfterFind(tx *gorm.DB) (err error) {
+  if u.MemberShip == "" {
+    u.MemberShip = "user"
+  }
+  return
+}
+```
+<br></br>
+<h3><li>Transactions :</h3>
+برای اینکه مجموعه ای از عملیات ها را در یک transaction انجام دهیم, به طور کلی باید مانند کد زیر عمل کنیم:
+
+<br>
+
+```go
+db.Transaction(func(tx *gorm.DB) error {
+  // do some database operations in the transaction (use 'tx' from this point, not 'db')
+  if err := tx.Create(&Animal{Name: "Giraffe"}).Error; err != nil {
+    // return any error will rollback
+    return err
+  }
+
+  if err := tx.Create(&Animal{Name: "Lion"}).Error; err != nil {
+    return err
+  }
+  // return nil will commit the whole transaction
+  return nil
+})
+```
+<br></br>
+<h3>Nested Transactions</h3>
+ما در GORM می توانیم زیرمجموعه ای از عملیات های انجام شده در یک scope از یک transaction بزرگتر رابه عقب برگردانیم. کد زیر این عملیات را انجام می دهد:
+
+<br>
+
+```go
+db.Transaction(func(tx *gorm.DB) error {
+  tx.Create(&user1)
+
+  tx.Transaction(func(tx2 *gorm.DB) error {
+    tx2.Create(&user2)
+    return errors.New("rollback user2") // Rollback user2
+  })
+
+  tx.Transaction(func(tx2 *gorm.DB) error {
+    tx2.Create(&user3)
+    return nil
+  })
+
+  return nil
+})
+```
+<br></br>
+<h3>SavePoint, RollbackTo</h3>
+GORM به ما این امکان را می دهد تا با استفاده از <code>SavePoint</code> و <code>RollbackTo</code>, نقاط و roll back یک savepoint را ذخیره کنیم, برای این منظور, مانند کد زیر عمل می کنیم:
+
+<br>
+
+```go 
+tx := db.Begin()
+tx.Create(&user1)
+
+tx.SavePoint("sp1")
+tx.Create(&user2)
+tx.RollbackTo("sp1") // Rollback user2
+
+tx.Commit() // Commit user1
+```
+<br></br>
+<h3><li>Migration :</h3>
+Migration به روند مدیریت الگو و شکل دیتابیس, که در طول زمان تغییر میکند, می گویند. این عملیات ها شامل creating, modifying و deleting برای جدول ها, ستون ها و دیگر اشیا مربوط به شکل دیتابیس هستند.
+<br>
+<h3>Auto Migration</h3>
+برای اینکه schemaی کلی به روز بماند, باید از <code>AutoMigrate</code> استفاده کنیم. 
+<br><code>AutoMigrate</code>, جداول، کلیدهای خارجی از دست رفته، محدودیت‌ها، ستون‌ها و فهرست‌ها را ایجاد می‌کند. در صورتی که اندازه، precision و nullable آن تغییر کند، نوع ستون موجود را تغییر خواهد داد.
+<br><code>AutoMigrate</code> برای محافظت از داده ها, ستون های استفاده نشده را حذف نمی کند. 
+<br> به این منظور, باید مانند کد زیر عمل کنیم:
+
+<br>
+
+```go
+db.AutoMigrate(&User{})
+db.AutoMigrate(&User{}, &Product{}, &Order{})
+
+// Add table suffix when creating tables
+db.Set("gorm:table_options", "ENGINE=InnoDB").AutoMigrate(&User{})
+```
+به طور مثال در این روش  عملیات روی جدول ها به صورت زیر خواهد بود:
+
+<br>
+
+```go
+// Create table for `User`
+db.Migrator().CreateTable(&User{})
+
+// Append "ENGINE=InnoDB" to the creating table SQL for `User`
+db.Set("gorm:table_options", "ENGINE=InnoDB").Migrator().CreateTable(&User{})
+
+// Rename old table to new table
+db.Migrator().RenameTable(&User{}, &UserInfo{})
+db.Migrator().RenameTable("users", "user_infos")
+```
+
+عملیات رو ستون ها:
+
+<br>
+
+```go
+type User struct {
+  Name string
+}
+
+// Add name field
+db.Migrator().AddColumn(&User{}, "Name")
+// Drop name field
+db.Migrator().DropColumn(&User{}, "Name")
+// Alter name field
+db.Migrator().AlterColumn(&User{}, "Name")
+// Check column exists
+db.Migrator().HasColumn(&User{}, "Name")
+```
+
+عملیات روی Constraints:
+
+<br>
+
+```go
+type UserIndex struct {
+  Name  string `gorm:"check:name_checker,name <> 'jinzhu'"`
+}
+
+// Create constraint
+db.Migrator().CreateConstraint(&User{}, "name_checker")
+
+// Check constraint exists
+db.Migrator().HasConstraint(&User{}, "name_checker")
+```
+<br></br>
+<h2>منابع</h2>
+<hr></hr>
+<br>
+<li> https://gorm.io/docs/
+<li> https://www.theserverside.com/definition/object-relational-mapping-ORM
+<li> https://maetl.net/talks/rise-and-fall-of-orm
+<li> https://en.wikipedia.org/
