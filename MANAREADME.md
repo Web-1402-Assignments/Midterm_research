@@ -1400,3 +1400,11 @@ db.Migrator().CreateConstraint(&User{}, "name_checker")
 // Check constraint exists
 db.Migrator().HasConstraint(&User{}, "name_checker")
 ```
+<br></br>
+<h2>منابع</h2>
+<hr></hr>
+<br>
+<li> https://gorm.io/docs/
+<li> https://www.theserverside.com/definition/object-relational-mapping-ORM
+<li> https://maetl.net/talks/rise-and-fall-of-orm
+<li> https://en.wikipedia.org/
