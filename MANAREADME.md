@@ -963,3 +963,43 @@ for rows.Next() {
   // do something
 }
 ```
+<br></br>
+<h2>GORM Tutorial</h2>
+<hr></hr>
+<h3><li>Context :</h3>
+Context در GORM, برای مدیریت lifecycle یک درخواست یا عملیات استفاده می شود. به عبارتی دیگر, context می تواند عملیات هایی را که شامل جستجو یا transaction در دیتابیس هستند مدیریت کند. همچنین به ما کمک می کند تا timeout ها, cancellation ها و  request-scoped value ها را مدیریت کنیم.<br>تابع مربوط به context, <code>WithContex</code> است.
+<br></br>
+<h3>Single Session Mode</h3>
+این حالت معمولا زمانی استفاده می شود که  بخواهیم فقط ۱ عملیات انجام دهیم.<br>مثال:
+
+<br>
+
+```go
+db.WithContext(ctx).Find(&users)
+```
+<br></br>
+<h3>Continuous session mode</h3>
+این حالت معمولا زمانی استفاده می شود که بخواهیم گروهی از عملیات ها را انجام دهیم.<br>مثال:
+
+<br>
+
+```go
+tx := db.WithContext(ctx)
+tx.First(&user, 1)
+tx.Model(&user).Update("role", "admin")
+```
+در کد بالا, با استفاده از یک context به اسم <code>ctx</code>, یک transaction ساخته ایم و آن را در tx ذخیره کرده ایم. سپس بخش های <code>tx.First(&user, 1)</code> و <code>tx.Model(&user).Update("role", "admin")</code>, عملیات دیتابیس را داخل transaction انجام می دهند.
+<br></br>
+<h3>Context timeout</h3>
+Context timeout در GORM به ما این امکان را می دهد تا حداکثر زمان مجاز انجام یک عملیات دیتابیس را مشخص کنیم. همچنین کمک می کند تا از اجرای طولانی یا هنگ کردن یک جستجو جلوگیری کنیم. کد زیر مثالی از این روش است:
+
+<br>
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+defer cancel()
+
+db.WithContext(ctx).Find(&users)
+```
+به طور مثال در کد بالا, زمان timeout روی ۲ ثانیه تنظیم شده است.
+<br></br>
