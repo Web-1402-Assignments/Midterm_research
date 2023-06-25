@@ -145,7 +145,7 @@ var users = []User{{Name: "jinzhu_1"}, ...., {Name: "jinzhu_10000"}}
 db.CreateInBatches(users, 100)
 ```
 <br>
-در کد زیر، دیتا ها را به دسته های ۱۰۰۰ تایی تقسیم می کنیم. سپس یک آرایه ۵۰۰۰ تایی از user ها داریم که هرکدام یه اسم و تعدادی (آرایه ای) از Pets دارند. با صدا زدن تابع Create، یوزر ها در ۵ batch که هرکدام از عملیات ها دارای ۱۰۰۰ یوزر است، در دیتابیس insert می شوند. توجه داشته باشید که insert کردن Pet ها در ۱۵ batch انجام می شود:
+در کد زیر، دیتا ها را به دسته های ۱۰۰۰ تایی تقسیم می کنیم. سپس یک آرایه ۵۰۰۰ تایی از user ها داریم که هرکدام یک اسم و تعدادی (آرایه ای) از Pets دارند. با صدا زدن تابع Create، یوزر ها در ۵ batch که هرکدام از عملیات ها دارای ۱۰۰۰ یوزر است، در دیتابیس insert می شوند. توجه داشته باشید که insert کردن Pet ها در ۱۵ batch انجام می شود:
 
 <br>
 
@@ -165,7 +165,7 @@ db.Create(&users)
 
 <br></br>
 <h3>Create Hooks</h3>
-در GORM، hook یک مکانیزم است که اه ما اجازه می دهد تا function هایی را تعریف کنیم که به صورت اوتوماتیک در نقاط خاصی از lifecycle یک آبجکت اجرا می شوند. Hook ها کمک می کنند تا یک logic هایی مانند creating، updating، deleting یا querying را اضافه کنیم. <br>حال در GORM این اجازه به ما داده می شود تا hook هایی که کاربر تعریف میکند، برای BeforeSave, BeforeCreate, AfterSave و AfterCreate پیاده سازی شوند. این متد hook زمانی که یک رکورد درست میکنیم فراخوانی می شود. کد زیر مثالی از این نمونه است:
+در GORM، hook یک مکانیزم است که به ما اجازه می دهد تا function هایی را تعریف کنیم که به صورت اوتوماتیک در نقاط خاصی از lifecycle یک آبجکت اجرا می شوند. Hook ها کمک می کنند تا یک logic هایی مانند creating، updating، deleting یا querying را اضافه کنیم. <br>حال در GORM این اجازه به ما داده می شود تا hook هایی که کاربر تعریف میکند، برای BeforeSave, BeforeCreate, AfterSave و AfterCreate پیاده سازی شوند. این متد hook زمانی که یک رکورد درست میکنیم فراخوانی می شود. کد زیر مثالی از این نمونه است:
 
 <br>
 
@@ -372,7 +372,7 @@ db.Clauses(clause.OnConflict{
 // INSERT INTO "users" *** ON CONFLICT ("id") DO UPDATE SET "name"="excluded"."name", "age"="excluded"."age", ...;
 // INSERT INTO `users` *** ON DUPLICATE KEY UPDATE `name`=VALUES(name),`age`=VALUES(age), ...; MySQL
 ```
-نکته: توضیحات بیشتر در بخش Advanced Query هستند.
+نکته: توضیحات بیشتر در بخش Advanced Query داده خواهند شد.
 
 <br></br>
 <h3><li>Query :</h3>
@@ -506,4 +506,227 @@ result.Error        // returns error
 ```
 <br></br>
 <h3>Conditions</h3>
-1. String Conditions :
+به طور کلی, condition ها به ما این امکان را می دهند تا با استفاده از فیلترها و معیارهای موردنظر, رکوردهای خاصی که مدنظرمان هستند را بازیابی کنیم. بنابراین condition ها مانند دستور WHERE در SQL عمل می کنند. condition ها انواع مختلفی دارند که در ادامه به توضیح هر یک می پردازیم.</br>
+<br>1. String Conditions :
+<br>در این نوع condition ما می توانیم شرط موردنظر برای بازیابی دیتا را به صورت رشته (string) مشخص کنیم. این روش مانند دستور WHERE در SQL عمل می کند. کد زیر نمونه هایی به همراه خروجی این دستور را به ما نشان می دهد:
+
+<br>
+
+```go
+// Get first matched record
+db.Where("name = ?", "jinzhu").First(&user)
+// SELECT * FROM users WHERE name = 'jinzhu' ORDER BY id LIMIT 1;
+
+// Get all matched records
+db.Where("name <> ?", "jinzhu").Find(&users)
+// SELECT * FROM users WHERE name <> 'jinzhu';
+
+// IN
+db.Where("name IN ?", []string{"jinzhu", "jinzhu 2"}).Find(&users)
+// SELECT * FROM users WHERE name IN ('jinzhu','jinzhu 2');
+
+// LIKE
+db.Where("name LIKE ?", "%jin%").Find(&users)
+// SELECT * FROM users WHERE name LIKE '%jin%';
+
+// AND
+db.Where("name = ? AND age >= ?", "jinzhu", "22").Find(&users)
+// SELECT * FROM users WHERE name = 'jinzhu' AND age >= 22;
+
+// Time
+db.Where("updated_at > ?", lastWeek).Find(&users)
+// SELECT * FROM users WHERE updated_at > '2000-01-01 00:00:00';
+
+// BETWEEN
+db.Where("created_at BETWEEN ? AND ?", lastWeek, today).Find(&users)
+// SELECT * FROM users WHERE created_at BETWEEN '2000-01-01 00:00:00' AND '2000-01-08 00:00:00';
+```
+همانطور که مشاهده می کنید در کد بالا, انواع حالات مشخص کردن شرط با string و خروجی کدها مشخص شده اند. 
+<br></br>
+<br>2. Struct and Map Conditions :
+<br>این نوع condition به ما اجازه می دهد تا شرط دیتای موردنظر را با استفاده از structured data یا map مشخص کنیم, مانند کد زیر:
+
+<br>
+
+```go
+// Struct
+db.Where(&User{Name: "jinzhu", Age: 20}).First(&user)
+// SELECT * FROM users WHERE name = "jinzhu" AND age = 20 ORDER BY id LIMIT 1;
+
+// Map
+db.Where(map[string]interface{}{"name": "jinzhu", "age": 20}).Find(&users)
+// SELECT * FROM users WHERE name = "jinzhu" AND age = 20;
+
+// Slice of primary keys
+db.Where([]int64{20, 21, 22}).Find(&users)
+// SELECT * FROM users WHERE id IN (20, 21, 22);
+```
+نکته: در GORM زمانی که از struct استفاده می کنیم, فیلدهایمان باید non zero باشند تا عملیات جستجو انجام شود. برای رفع این مشکل, به جای struct باید از map استفاده کنیم. به طور مثال, صفر در کد زیر مشکلی ایجاد نمی کند:
+
+<br>
+
+```go
+db.Where(map[string]interface{}{"Name": "jinzhu", "Age": 0}).Find(&users)
+// SELECT * FROM users WHERE name = "jinzhu" AND age = 0;
+```
+اما اگر بخواهیم در این شرایط از struct استفاده کنیم و همچنان مشکلی نداشته باشیم, باید مانند کد زیر عمل کنیم:
+
+<br>
+
+```go
+db.Where(&User{Name: "jinzhu"}, "name", "Age").Find(&users)
+// SELECT * FROM users WHERE name = "jinzhu" AND age = 0;
+```
+</br>
+<br>3. Inline Condition :
+<br>در این نوع شرط ما می توانیم به صورت مستقیم در تابع هایی مانند First و Find شرط موردنظر را بنویسیم:
+
+<br>
+
+```go
+db.Find(&users, "name <> ? AND age > ?", "jinzhu", 20)
+// SELECT * FROM users WHERE name <> "jinzhu" AND age > 20;
+
+// Struct
+db.Find(&users, User{Age: 20})
+// SELECT * FROM users WHERE age = 20;
+
+// Map
+db.Find(&users, map[string]interface{}{"age": 20})
+// SELECT * FROM users WHERE age = 20;
+```
+</br>
+<br>4. Not Conditions :
+<br>در این نوع condition, ما می توانیم شروطی را مشخص کنیم که نمی خواهیم رکوردی که به ما خروجی داده می شود, دارای آنها باشد. مانند کد زیر:
+
+<br>
+
+```go
+db.Not("name = ?", "jinzhu").First(&user)
+// SELECT * FROM users WHERE NOT name = "jinzhu" ORDER BY id LIMIT 1;
+
+// Struct
+db.Not(User{Name: "jinzhu", Age: 18}).First(&user)
+// SELECT * FROM users WHERE name <> "jinzhu" AND age <> 18 ORDER BY id LIMIT 1;
+
+// Not In slice of primary keys
+db.Not([]int64{1,2,3}).First(&user)
+// SELECT * FROM users WHERE id NOT IN (1,2,3) ORDER BY id LIMIT 1;
+```
+</br>
+<br>5. Or Conditions :
+<br>در این نوع condition می توانیم دو حالت شرط را درنظر بگیریم. کد زیر مثالی از این روش با استفاده از map است:
+
+<br>
+
+```go
+// Map
+db.Where("name = 'jinzhu'").Or(map[string]interface{}{"name": "jinzhu 2", "age": 18}).Find(&users)
+// SELECT * FROM users WHERE name = 'jinzhu' OR (name = 'jinzhu 2' AND age = 18);
+```
+<br></br>
+<h3>Selecting Specific Fields</h3>
+Select در GORM به ما این اجازه را می دهد تا field های موردنظرمان را که می خواهیم رکورد خروجی آنها را داشته باشد مشخص کنیم. کد زیر نمونه ساده ای از این روش است:
+
+<br>
+
+```go
+db.Select("name", "age").Find(&users)
+// SELECT name, age FROM users;
+```
+<br></br>
+<h3>Order</h3>
+ما می توانیم ترتیب رکوردهایی را که به ما داده می شوند خودمان مشخص کنیم. برای این کار, از تابع Order در GORM استفاده می کنیم. دو حالت از این روش در کد زیر با توضیحاتشان مشخص شده اند:
+
+<br>
+
+```go
+// Multiple orders
+db.Order("age desc").Order("name").Find(&users)
+// SELECT * FROM users ORDER BY age desc, name;
+
+db.Clauses(clause.OrderBy{
+  Expression: clause.Expr{SQL: "FIELD(id,?)", Vars: []interface{}{[]int{1, 2, 3}}, WithoutParentheses: true},
+}).Find(&User{})
+// SELECT * FROM users ORDER BY FIELD(id,1,2,3)
+```
+<br></br>
+<h3>Limit and Offset</h3>
+Limit, بیشترین تعداد رکوردهایی را که می خواهیم مشخص می کند. مانند کد زیر:
+<br>Offset تعداد رکوردهایی را که نمیخواهیم خروجی داده شوند (قبل از رکورد کردن) مشخص می کند. کد زیر ترکیبی از این دو حالت است:
+
+<br>
+
+```go
+db.Limit(10).Offset(5).Find(&users)
+// SELECT * FROM users OFFSET 5 LIMIT 10;
+```
+اگر بخواهیم Limit را کنسل کنیم, باید از <code>Limit(-1)</code> استفاده کنیم. مانند کد زیر:
+<br>
+
+```go
+db.Limit(10).Find(&users1).Limit(-1).Find(&users2)
+```
+<br></br>
+<h3>Group By and Having</h3>
+با استفاده از Group By می توانیم مجموعه ای از دیتاها را دریافت کنیم و عملیات ها را روی زیرمجموعه ای از سطرها که اطلاعاتی مشترک دارند, انجام دهیم. به طور مثال کد زیر را درنظر بگیرید:
+
+<br>
+
+```go
+db.Model(&User{}).Select("name, sum(age) as total").Where("name LIKE ?", "group%").Group("name").First(&result)
+```
+در این کد ابتدا با <code>db.Model(&User{})</code> مشخص می کنیم که قرار است عملیات موردنظر روی جدول User انجام شود. <code>Select("name, sum(age) as total")</code> در این تکه کد, ابتدا ستون name را انتخاب می کنیم, سپس اعداد ستون age را باهم جمع کرده و داخل متغیر total ذخیره می کنیم. <code>Where("name LIKE ?", "group%")</code> در این بخش براساس ستون name, اسم هایی را که شبیه به هم هستند و با group شروع می شوند را شناسایی می کنیم. با این تکه کد, <code>Group("name")</code>, رکوردها را براساس یکسان بودن اسم هایشان تقسیم بندی می کنیم. و در نهایت با استفاده از کد <code>First(&result)</code> اولین جواب جستجو را با توجه به شروط گفته شده, در result ذخیره می کنیم.<br>نکته: باید توجه داشت که این کد, age ها را برای دیتاهایی که اسم هایشان در شرایط <code>name LIKE "group%</code> صدق می کند با هم جمع می کند.
+<br></br>Having نیز نوعی شرط را روی دیتاهای موردنظر مشخص می کند و این امکان را به ما می دهد تا گروه ها را بر اساس محاسبات کل فیلتر کنیم.<br>نکته: Having همواره بعد از Group By می آید.<br>کد زیر را درنظر بگیرید:
+
+<br>
+
+```go
+rows, err := db.Table("orders").Select("date(created_at) as date, sum(amount) as total").Group("date(created_at)").Having("sum(amount) > ?", 100).Rows()
+defer rows.Close()
+for rows.Next() {
+  ...
+}
+```
+در کد بالا همانطور که مشاهد می کنید, ابتدا گروه هایی را با شرایط تعیین شده مشخص می کنیم, سپس با استفاده از Having,  آن گروه هایی که جمع ستون های amount آنها از  ۱۰۰ بیشتر است را انتخاب می کنیم.
+<br></br>
+<h3>Distinct</h3>
+این تابع در GORM به ما اجازه می دهد تا رکوردهای منحصر به فرد را از جدول بازیابی کنیم و تکرارها را در نتیجه حذف کنیم. Distinct با Pluck و Count کار می کند.<br>در کد زیر, دنبال دیتاهایی هستیم که ترکیب name و age آنها متفاوت است:
+
+<br>
+
+```go
+db.Distinct("name", "age").Order("name, age desc").Find(&results)
+```
+<br></br>
+<h3>Joins</h3>
+Join این امکان را به ما می دهد تا دیتاها را از چندین جدول, با توجه به شروط موردنظر, ترکیب کنیم. به کد زیر توجه کنید:
+
+<br>
+
+```go
+type result struct {
+  Name  string
+  Email string
+}
+
+db.Model(&User{}).Select("users.name, emails.email").Joins("left join emails on emails.user_id = users.id").Scan(&result{})
+```
+در کد بالا, پس از انتخاب ستون ها از جدول های موردنظر (name از جدول User و email از جدول emails), این دو جدول را بر اساس برابری ستون های user_id در جدول emails و id در جدول users ترکیب می کنیم.
+<br>
+از انواع join های دیگر می توان به Joins Preloading, Join with conditions و Joins a Derived Table اشاره کرد.
+<br></br>
+<h3>Scan</h3>
+Scan نتایج در یک struct عمکردی مانند Find دارد. کد زیر نمونه ای از این روش است:
+
+<br>
+
+```go
+type Result struct {
+  Name string
+  Age  int
+}
+
+var result Result
+db.Table("users").Select("name", "age").Where("name = ?", "Antonio").Scan(&result)
+```
