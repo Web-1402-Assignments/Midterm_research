@@ -1331,3 +1331,72 @@ tx.RollbackTo("sp1") // Rollback user2
 
 tx.Commit() // Commit user1
 ```
+<br></br>
+<h3><li>Migration :</h3>
+Migration به روند مدیریت الگو و شکل دیتابیس, که در طول زمان تغییر میکند, می گویند. این عملیات ها شامل creating, modifying و deleting برای جدول ها, ستون ها و دیگر اشیا مربوط به شکل دیتابیس هستند.
+<br>
+<h3>Auto Migration</h3>
+برای اینکه schemaی کلی به روز بماند, باید از <code>AutoMigrate</code> استفاده کنیم. 
+<br><code>AutoMigrate</code>, جداول، کلیدهای خارجی از دست رفته، محدودیت‌ها، ستون‌ها و فهرست‌ها را ایجاد می‌کند. در صورتی که اندازه، precision و nullable آن تغییر کند، نوع ستون موجود را تغییر خواهد داد.
+<br><code>AutoMigrate</code> برای محافظت از داده ها, ستون های استفاده نشده را حذف نمی کند. 
+<br> به این منظور, باید مانند کد زیر عمل کنیم:
+
+<br>
+
+```go
+db.AutoMigrate(&User{})
+db.AutoMigrate(&User{}, &Product{}, &Order{})
+
+// Add table suffix when creating tables
+db.Set("gorm:table_options", "ENGINE=InnoDB").AutoMigrate(&User{})
+```
+به طور مثال در این روش  عملیات روی جدول ها به صورت زیر خواهد بود:
+
+<br>
+
+```go
+// Create table for `User`
+db.Migrator().CreateTable(&User{})
+
+// Append "ENGINE=InnoDB" to the creating table SQL for `User`
+db.Set("gorm:table_options", "ENGINE=InnoDB").Migrator().CreateTable(&User{})
+
+// Rename old table to new table
+db.Migrator().RenameTable(&User{}, &UserInfo{})
+db.Migrator().RenameTable("users", "user_infos")
+```
+
+عملیات رو ستون ها:
+
+<br>
+
+```go
+type User struct {
+  Name string
+}
+
+// Add name field
+db.Migrator().AddColumn(&User{}, "Name")
+// Drop name field
+db.Migrator().DropColumn(&User{}, "Name")
+// Alter name field
+db.Migrator().AlterColumn(&User{}, "Name")
+// Check column exists
+db.Migrator().HasColumn(&User{}, "Name")
+```
+
+عملیات روی Constraints:
+
+<br>
+
+```go
+type UserIndex struct {
+  Name  string `gorm:"check:name_checker,name <> 'jinzhu'"`
+}
+
+// Create constraint
+db.Migrator().CreateConstraint(&User{}, "name_checker")
+
+// Check constraint exists
+db.Migrator().HasConstraint(&User{}, "name_checker")
+```
