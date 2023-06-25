@@ -1154,3 +1154,120 @@ db.Session(&gorm.Session{CreateBatchSize: 1000}).Create(&users)
 // INSERT INTO pets xxx (15 batches)
 ```
 توضیحات کد بالا را قبلا داده بودیم.
+<br></br>
+<h3><li>Hooks :</h3>
+hook ها توابعی هستند که قبل یا بعد creation, querying, updating و deletion فراخوانی می شوند.
+<br>حالت کلی توابع hoop به این صورت است:
+<code>func(*gorm.DB) error</code>
+<br></br>
+<h3>Creating an object</h3>
+hook های موجود برای درست کردن یک object:
+
+<br>
+
+```
+BeforeSave
+BeforeCreate
+AfterCreate
+AfterSave
+```
+قبل و بعد از ساخت یک user, مراحل زیر را باید انجام دهیم:
+<br>
+نکته: <code>BeforeCreate</code> و <code>AfterCreate</code>, توابع hook هستند.
+
+<br>
+
+```go
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+  u.UUID = uuid.New()
+
+  if !u.IsValid() {
+    err = errors.New("can't save invalid data")
+  }
+  return
+}
+
+func (u *User) AfterCreate(tx *gorm.DB) (err error) {
+  if u.ID == 1 {
+    tx.Model(u).Update("role", "admin")
+  }
+  return
+}
+```
+در کد بالا, تابع <code>BeforeCreate</code>, یک uuid برای instance user می سازد (قبل از ساخته شدن یوزر). پس از ساخته شدن یوزر, تابع <code>AfterCreate</code> برای چک کردن uuid و دیگر عملکردهایی که در کد مشخص اند, فراخوانی می شود.
+<br></br>
+<h3>Updating an object</h3>
+hook های موجود برای update کردن یک object:
+
+<br>
+
+```
+BeforeSave
+BeforeUpdate
+AfterUpdate
+AfterSave
+```
+کد نمونه برای update کردن یک object به صورت زیر است:
+
+<br>
+
+```go
+func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
+  if u.readonly() {
+    err = errors.New("read only user")
+  }
+  return
+}
+
+// Updating data in same transaction
+func (u *User) AfterUpdate(tx *gorm.DB) (err error) {
+  if u.Confirmed {
+    tx.Model(&Address{}).Where("user_id = ?", u.ID).Update("verfied", true)
+  }
+  return
+}
+```
+<br></br>
+<h3>Deleting an object</h3>
+hook های موجود برای حذف کردن یک object:
+
+<br>
+
+```
+BeforeDelete
+AfterDelete
+```
+برای این بخش, باید به طور کلی مانند کد زیر عمل کنیم:
+
+<br>
+
+```go
+// Updating data in same transaction
+func (u *User) AfterDelete(tx *gorm.DB) (err error) {
+  if u.Confirmed {
+    tx.Model(&Address{}).Where("user_id = ?", u.ID).Update("invalid", false)
+  }
+  return
+}
+```
+<br></br>
+<h3>Querying an object</h3>
+hook های موجود برای جستجو کردن یک object:
+
+<br>
+
+```
+AfterFind
+```
+استفاده از <code>AfterFind</code> به صورت زیر خواهد بود:
+
+<br>
+
+```go
+func (u *User) AfterFind(tx *gorm.DB) (err error) {
+  if u.MemberShip == "" {
+    u.MemberShip = "user"
+  }
+  return
+}
+```
