@@ -165,7 +165,7 @@ db.Create(&users)
 
 <br></br>
 <h3>Create Hooks</h3>
-در GORM، hook یک مکانیزم است که به ما اجازه می دهد تا function هایی را تعریف کنیم که به صورت اوتوماتیک در نقاط خاصی از lifecycle یک آبجکت اجرا می شوند. Hook ها کمک می کنند تا یک logic هایی مانند creating، updating، deleting یا querying را اضافه کنیم. <br>حال در GORM این اجازه به ما داده می شود تا hook هایی که کاربر تعریف میکند، برای BeforeSave, BeforeCreate, AfterSave و AfterCreate پیاده سازی شوند. این متد hook زمانی که یک رکورد درست میکنیم فراخوانی می شود. کد زیر مثالی از این نمونه است:
+در GORM، hook یک مکانیزم است که به ما اجازه می دهد تا function هایی را تعریف کنیم که به صورت اتوماتیک در نقاط خاصی از lifecycle یک آبجکت اجرا می شوند. Hook ها کمک می کنند تا یک logic هایی مانند creating، updating، deleting یا querying را اضافه کنیم. <br>حال در GORM این اجازه به ما داده می شود تا hook هایی که کاربر تعریف میکند، برای BeforeSave, BeforeCreate, AfterSave و AfterCreate پیاده سازی شوند. این متد hook زمانی که یک رکورد درست میکنیم فراخوانی می شود. کد زیر مثالی از این نمونه است:
 
 <br>
 
@@ -735,7 +735,7 @@ db.Table("users").Select("name", "age").Where("name = ?", "Antonio").Scan(&resul
 <h3><li>Advanced Query :</h3>
 <br>
 <h3>Smart Select Fields</h3>
-smart select fields در GORM, یک قابلیت است که در آن, یک select به صورت اوتوماتیک, با فیلدهای خاصی, تولید می شود. (هنگام جستجو در دیتابیس). این ویژگی این امکان را به ما می دهد تا فیلدهای خاص و موردنظرمان را از جدول بازیابی کنیم (به جای دریافت همه ستون ها). به طور مثال کد زیر را درنظر بگیرید:
+smart select fields در GORM, یک قابلیت است که در آن, یک select به صورت اتوماتیک, با فیلدهای خاصی, تولید می شود. (هنگام جستجو در دیتابیس). این ویژگی این امکان را به ما می دهد تا فیلدهای خاص و موردنظرمان را از جدول بازیابی کنیم (به جای دریافت همه ستون ها). به طور مثال کد زیر را درنظر بگیرید:
 
 <br>
 
@@ -871,4 +871,42 @@ db.Model(User{}).Where("role = ?", "admin").Updates(User{Name: "hello", Age: 18}
 // Update with map
 db.Table("users").Where("id IN ?", []int{10, 11}).Updates(map[string]interface{}{"name": "hello", "age": 18})
 // UPDATE users SET name='hello', age=18 WHERE id IN (10, 11);
+```
+
+<br></br>
+<h3><li>Delete :</h3>
+<br>
+<h3>Delete a Record</h3>
+در هنگام حذف کردن یک رکورد, مقداری که می خواهیم حذف شود باید primary key داشته باشد در غیر این صورت, یک batch delete صورت می گیرد که در ادامه توضیح می دهیم. کد زیر یک نمونه delete است:
+
+<br>
+
+```go
+// Delete with additional conditions
+db.Where("name = ?", "jinzhu").Delete(&email)
+// DELETE from emails where id = 10 AND name = "jinzhu";
+```
+<br></br>
+<h3>Batch Delete</h3>
+همانطور که گفته شد, اگر مقدار مشخص شده برای حذف, primary key نداشته باشد, GORM تمام رکوردهایی که با شرایط صدق می کنند را حذف خواهد کرد, مانند کد زیر:
+
+<br>
+
+```go
+db.Delete(&Email{}, "email LIKE ?", "%jinzhu%")
+// DELETE from emails where email LIKE "%jinzhu%";
+```
+<br></br>
+<h3>Soft Delete</h3>
+اگر مدل ما دارای فیلد <code>gorm.DeletedAt</code> باشد, به طور اتوماتیک قابلیت soft delete را خواهد داشت.<br> زمانی که ما Delete را فراخوانی می کنیم, رکورد موردنظر از دیتابیس حذف نمی شود, بلکه GORM مقدار DeletedAt را روی زمان فعلی تنظیم می کند و در این صورت, دیتای ما, دیگر با روش های عادی Query قابل یافتن نخواهد بود:
+
+<br>
+
+```go
+// user's ID is `111`
+db.Delete(&user)
+// UPDATE users SET deleted_at="2013-10-29 10:23" WHERE id = 111;
+// Soft deleted records will be ignored when querying
+db.Where("age = 20").Find(&user)
+// SELECT * FROM users WHERE age = 20 AND deleted_at IS NULL;
 ```
