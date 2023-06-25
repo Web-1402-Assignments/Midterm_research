@@ -734,3 +734,85 @@ db.Table("users").Select("name", "age").Where("name = ?", "Antonio").Scan(&resul
 <br></br>
 <h3><li>Advanced Query :</h3>
 <br>
+<h3>Smart Select Fields</h3>
+smart select fields در GORM, یک قابلیت است که در آن, یک select به صورت اوتوماتیک, با فیلدهای خاصی, تولید می شود. (هنگام جستجو در دیتابیس). این ویژگی این امکان را به ما می دهد تا فیلدهای خاص و موردنظرمان را از جدول بازیابی کنیم (به جای دریافت همه ستون ها). به طور مثال کد زیر را درنظر بگیرید:
+
+<br>
+
+```go
+type User struct {
+  ID     uint
+  Name   string
+  Age    int
+  Gender string
+}
+
+type APIUser struct {
+  ID   uint
+  Name string
+}
+
+// Select `id`, `name` automatically when querying
+db.Model(&User{}).Limit(10).Find(&APIUser{})
+```
+در کد بالا, دو struct User و  APIUser داریم که این دومین struct, فیلدهای موردنظر ما ینی name و id را مشخص میکند. سپس در خط آخر, با محدودیت ۱۰ خروجی, تمام فیدهای id و name را از User جستجو کرده و خروجی می دهد.
+<br></br>
+<h3>SubQuery</h3>
+SubQuery در GORM, به یک جستجو داخل جستجویی دیگر گفته می شود. این ویژگی به ما اجازه می دهد که نتیجه یک جستجو را به عنوان ورودی یا شرط برای جستجویی دیگر درنظر بگیریم, درنتیجه قادر به جستجوهای پیچیده تری خواهیم بود. کد زیر نمونه ای از یک SubQuery است:
+
+<br>
+
+```go
+db.Where("amount > (?)", db.Table("orders").Select("AVG(amount)")).Find(&orders)
+// SELECT * FROM "orders" WHERE amount > (SELECT AVG(amount) FROM "orders");
+```
+در کد بالا, جستجوی اصلی بخش <code>db.Where("amount > (?)", subquery).Find(&orders)</code> است و subquery در این عبارت, بخش <code>db.Table("orders").Select("AVG(amount)")</code> است. جستجوی اصلی در این تکه کد, این است که رکوردهایی را از جدول orders به ما بدهد که amount آنها بیشتر از میانگین amount حساب شده در subquery باشد.
+<br></br>
+<h3>Pluck</h3>
+در این روش, یک ستون از دیتابیس را جستجو می کنیم, سپس آن را در یک قطعه (slice), scan می کنیم. کد زیر نمونه ای از این روش است:
+
+<br>
+
+```go
+var ages []int64
+db.Model(&users).Pluck("age", &ages)
+```
+در کد بالا مقادیر ستون age را بازیابی کرده (از جدول users) و آنها را در قطعه (slice) ages ذخیره می کنیم.
+
+<br>
+اگر بخواهیم چندین ستون را جستجو کنیم, از select با scan استفاده  می کنیم (به جای Select و Pluck), مانند کد زیر:
+
+<br>
+
+```go
+db.Select("name", "age").Scan(&users)
+```
+<br></br>
+<h3>Scopes</h3>
+Scope ها این امکان را به ما می دهند تا جستجوهای پرکاربرد را مشخص کنیم. Scope ها معمولا به صورت توابع فراخوانی می شوند. مثال:
+
+<br>
+
+```go
+func AmountGreaterThan1000(db *gorm.DB) *gorm.DB {
+  return db.Where("amount > ?", 1000)
+}
+
+func PaidWithCreditCard(db *gorm.DB) *gorm.DB {
+  return db.Where("pay_mode_sign = ?", "C")
+}
+db.Scopes(AmountGreaterThan1000, PaidWithCreditCard).Find(&orders)
+// Find all credit card orders and amount greater than 1000
+```
+در کد بالا تابع <code>AmountGreaterThan1000</code> یک تابع scope است که خروجی و ورودی آن از جنس <code>*gorm.DB</code> هستند. در بخش <code>db.Scopes(AmountGreaterThan1000, PaidWithCreditCard).Find(&orders)</code>, شروط موجود در دو scope (<code>AmountGreaterThan1000</code> و <code>PaidWithCreditCard</code>) را باهم ادغام می کنیم و رکوردهای موردنظر را به توجه به این شرایط خروجی می دهیم.
+<br></br>
+<h3>Count</h3>
+Count در GORM, تعداد رکوردهایی را که در شرایط خاصی صدق می کنند را به ما می دهد. تابع Count این مقدار را بدون اینکه آن رکوردها را خروجی دهد به ما می دهد.
+کد زیر مثالی از این روش است:
+
+<br>
+
+```go
+var count int64
+db.Model(&User{}).Where("age > ?", 18).Count(&count)
+```
