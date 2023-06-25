@@ -1063,3 +1063,94 @@ Finisher method ها, تابع های فوری هستند که callback های �
 <br><code>Create</code>, <code>First</code>, <code>Find</code>, <code>Take</code>, <code>Save</code>, <code>Update</code>, <code>Delete</code>, <code>Scan</code>, <code>Row</code>, <code>Rows</code> ...
 <h3>New Session Method</h3>
 تابع های <code>Session</code>, <code>WithContext</code> و <code>Debug</code> در GORM به عنوان new session method شناخته می شوند.
+<br></br>
+<h3><li>Session :</h3>
+یک نوع تابع New Session Method است که امکان ایجاد یک session جدید با حالت configuration را به ما می دهد. با session می توانیم چندین عملیات دیتابیس را در یک واحد منطقی گروه بندی کنیم. برخی از این واحدهای منطقی به این صورت هستند:
+
+<br>
+
+```go
+// Session Configuration
+type Session struct {
+  DryRun                   bool
+  PrepareStmt              bool
+  NewDB                    bool
+  Initialized              bool
+  SkipHooks                bool
+  SkipDefaultTransaction   bool
+  DisableNestedTransaction bool
+  AllowGlobalUpdate        bool
+  FullSaveAssociations     bool
+  QueryFields              bool
+  Context                  context.Context
+  Logger                   logger.Interface
+  NowFunc                  func() time.Time
+  CreateBatchSize          int
+}
+```
+<h3>DryRun</h3>
+به طور مثال, <code>DryRun</code> به صورت زیر است که در خود کد توضیح داده شده است:
+
+<br>
+
+```go
+// session mode
+stmt := db.Session(&Session{DryRun: true}).First(&user, 1).Statement
+stmt.SQL.String() //=> SELECT * FROM `users` WHERE `id` = $1 ORDER BY `id`
+stmt.Vars         //=> []interface{}{1}
+
+// globally mode with DryRun
+db, err := gorm.Open(sqlite.Open("gorm.db"), &gorm.Config{DryRun: true})
+
+// different databases generate different SQL
+stmt := db.Find(&user, 1).Statement
+stmt.SQL.String() //=> SELECT * FROM `users` WHERE `id` = $1 // PostgreSQL
+stmt.SQL.String() //=> SELECT * FROM `users` WHERE `id` = ?  // MySQL
+stmt.Vars         //=> []interface{}{1}
+```
+کد بالا, یک SQL را بدون اجرا, تولید می کند. این عملکرد می تواند به ما در آماده کردن یا تست کردن SQL تولیدشده کمک کند.
+<br>در ادامه کد بالا, برای تولید SQL نهایی باید از کد زیر استفاده کنیم:
+
+<br>
+
+```go
+// NOTE: the SQL is not always safe to execute, GORM only uses it for logs, it might cause SQL injection
+db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
+// SELECT * FROM `users` WHERE `id` = 1
+```
+<br>
+<h3>Skip Hooks</h3>
+اگر بخواهیم توابع hook را درنظر نگیریم (Skip کنیم), باید از SkipHooks که یک نوع session mode است استفاده کنیم, مثلا:
+
+<br>
+
+```go
+DB.Session(&gorm.Session{SkipHooks: true}).Create(&user)
+
+DB.Session(&gorm.Session{SkipHooks: true}).Model(User{}).Where("age > ?", 18).Updates(&user)
+```
+<h3>Context</h3>
+با context, می توانیم برای عملیات SQL ای که قرار است اجرا شود, context تنظیم کنیم, مانند کد زیر:
+
+<br>
+
+```go
+timeoutCtx, _ := context.WithTimeout(context.Background(), time.Second)
+tx := db.Session(&Session{Context: timeoutCtx})
+
+tx.First(&user) // query with context timeoutCtx
+tx.Model(&user).Update("role", "admin") // update with context timeoutCtx
+```
+<h3>CreateBatchSize</h3>
+default batch size:
+
+<br>
+
+```go
+users = [5000]User{{Name: "jinzhu", Pets: []Pet{pet1, pet2, pet3}}...}
+
+db.Session(&gorm.Session{CreateBatchSize: 1000}).Create(&users)
+// INSERT INTO users xxx (5 batches)
+// INSERT INTO pets xxx (15 batches)
+```
+توضیحات کد بالا را قبلا داده بودیم.
