@@ -816,3 +816,59 @@ Count در GORM, تعداد رکوردهایی را که در شرایط خاص�
 var count int64
 db.Model(&User{}).Where("age > ?", 18).Count(&count)
 ```
+
+<br></br>
+<h3><li>Update :</h3>
+<br>
+<h3>Save All Fields</h3>
+اگر در SQL, به روزرسانی کنیم, save همه فیلدها را ذخیره خواهد کرد:
+
+<br>
+
+```go
+db.First(&user)
+
+user.Name = "jinzhu 2"
+user.Age = 100
+db.Save(&user)
+// UPDATE users SET name='jinzhu 2', age=100, birthday='2016-01-01', updated_at = '2013-11-17 21:34:10' WHERE id=111;
+```
+<br></br>
+<h3>Update single column</h3>
+استفاده از update باید به همراه شرط (condition) باشد, در غیر این صورت ارور <code>ErrMissingWhereClause</code> می دهد. کد زیر مثالی از update با شرط است:
+
+<br>
+
+```go
+db.Model(&User{}).Where("active = ?", true).Update("name", "hello")
+// UPDATE users SET name='hello', updated_at='2013-11-17 21:34:10' WHERE active=true;
+```
+<br></br>
+<h3>Update multiple columns</h3>
+برای اینکه چندین ستون را update کنیم, باید از <code>struct</code> یا <code>map[string]interface{}</code> استفاده کنیم,مانند کد زیر:
+
+<br>
+
+```go
+db.Model(&user).Updates(User{Name: "hello", Age: 18, Active: false})
+// UPDATE users SET name='hello', age=18, updated_at = '2013-11-17 21:34:10' WHERE id = 111;
+
+db.Model(&user).Updates(map[string]interface{}{"name": "hello", "age": 18, "active": false})
+// UPDATE users SET name='hello', age=18, active=false, updated_at='2013-11-17 21:34:10' WHERE id=111;
+```
+نکته: اگر از <code>struct</code> استفاده می کنیم, باید توجه داشته باشیم که فقط فیلدهای non-zero آپدیت خواهند شد.
+<br></br>
+<h3>Batch Updates</h3>
+اگر در Model, رکوردی که دارای primary key است را مشخص نکرده باشیم, GORM یک batch update انجام می دهد, مانند کد زیر:
+
+<br>
+
+```go
+// Update with struct
+db.Model(User{}).Where("role = ?", "admin").Updates(User{Name: "hello", Age: 18})
+// UPDATE users SET name='hello', age=18 WHERE role = 'admin';
+
+// Update with map
+db.Table("users").Where("id IN ?", []int{10, 11}).Updates(map[string]interface{}{"name": "hello", "age": 18})
+// UPDATE users SET name='hello', age=18 WHERE id IN (10, 11);
+```
