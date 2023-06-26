@@ -2764,8 +2764,8 @@ db.InstanceSet("my_value", myValue).Create(&User{})
 <h2 style="text-align:center">منابع</h2>
 <hr></hr>
 <br>
-<li> https://gorm.io/docs/
-<li> https://www.theserverside.com/definition/object-relational-mapping-ORM
-<li> https://maetl.net/talks/rise-and-fall-of-orm
-<li> https://en.wikipedia.org/
+<li> https://gorm.io/docs/</li>
+<li> https://www.theserverside.com/definition/object-relational-mapping-ORM</li>
+<li> https://maetl.net/talks/rise-and-fall-of-orm</li>
+<li> https://en.wikipedia.org/</li>
 </div>
